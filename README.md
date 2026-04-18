@@ -1,50 +1,64 @@
 [![Open in Visual Studio Code](https://classroom.github.com/assets/open-in-vscode-2e0aaae1b6195c2367325f4f02e2d04e9abb55f0b24a779b69b11b9e10269abc.svg)](https://classroom.github.com/online_ide?assignment_repo_id=23178784&assignment_repo_type=AssignmentRepo)
-Project Instructions
-==============================
+# Project Instructions
 
-This repo contains the instructions for a machine learning project. 
+This repository contains instructions and source code for School & Village Status Report Generation Tool project.
 
-**Do Not Forget to mention the Python Version being used and complete the requirements.txt fil**
+> **Important:**  
+> Python version used: **3.11.13**  
+> Ensure `requirements.txt` is complete and up to date.
 
-Project Organization
-------------
+---
 
-    ├── README.md          <- The top-level README for describing highlights for using this ML project.
-    │
-    ├── notebooks          <- Jupyter notebooks. Naming convention should snake case.
-    │
-    ├── reports            
-    │   └── figures        <- Generated graphics and figures to be used in reporting
-    │   └── README.md      <- Youtube Video Link
-    │   └── final_project_report <- final report .pdf format and supporting files
-    │   └── presentation   <-  final power point presentation 
-    |
-    ├── requirements.txt   <- The requirements file for reproducing the analysis environment, e.g.
-    │                         generated with `pip freeze > requirements.txt`
-    │
-    ├── src                <- Source code for use in this project.
-       ├── __init__.py    <- Makes src a Python module
-       ├── data
-       │   ├── processed      <- The final, canonical data sets for modeling.
-       │   └── raw            <- The original, immutable data dump.
-       │
-       ├── preprocessing_data           <- Scripts to download or generate data and pre-process the data
-       │   └── pre-processing.py
-       │
-       ├── feature_engineering       <- Scripts to turn raw data into features for modeling
-       │   └── build_features.py
-       │
-       ├── models         <- Scripts to train models and then use trained models to make
-       │   │                 predictions
-       │   ├── predict_model.py
-       │   └── train_model.py
-       │
-       └── visualization  <- Scripts to create exploratory and results oriented visualizations
-       │   └── visualize.py  
-       │
-       └── main.py  <- main script to run all the models and call appropriate functions
-       |
-       ├── LICENSE  <- LICENSE terms to be included for the use of the source code distribution
+## Setup
 
+Create and activate a Conda environment, then install dependencies:
 
+```bash
+conda create -n village-status-env python=3.11.13
+conda activate village-status-env
+pip install -r requirements.txt
+```
 
+---
+
+## Project Organization
+
+```
+├── README.md              <- Top-level documentation
+├── notebooks              <- Jupyter notebooks (use snake_case naming)
+├── reports                <- Reports and outputs
+│   ├── figures            <- Generated graphics and figures
+│   ├── README.md          <- YouTube video link
+│   ├── final_project_report <- Final report (PDF + supporting files)
+│   └── presentation       <- Final PowerPoint presentation
+│
+├── requirements.txt       <- Python dependencies (`pip freeze > requirements.txt`)
+│
+├── src                    <- Source code
+│   ├── preprocessing_data <- Data preprocessing scripts
+│   ├── punjabi_font       <- Font resources (Punjabi)
+│   ├── __init__.py        <- Makes src a module
+│   ├── config.py          <- Configuration variables
+│   ├── constants.py       <- Project constants
+│   ├── llm.py             <- LLM-related logic
+│   ├── main.py            <- Entry point script
+│   ├── prompts.py         <- Prompt templates
+│   └── utils.py           <- Utility functions
+│
+├── .env                   <- Environment variables
+├── .env.example           <- Example env file
+├── .gitignore             <- Git ignore rules
+├── LICENSE                <- License information
+├── meetings.md            <- Meeting notes
+└── weekly_report.md       <- Weekly updates
+```
+
+---
+
+## 🚀 Usage
+
+Run the main script:
+
+```bash
+python -m streamlit run src/main.py
+```

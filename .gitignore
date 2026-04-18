@@ -1,8 +1,9 @@
 # ──────────────────────────────────────────────────────────────────────────────
 # 1) Generated Files and Folders
-# ─
-/reports/final_project_report/_output/
-/reports/final_project_report/tex_files/
+# ──────────────────────────────────────────────────────────────────────────────
+
+# Application data
+src/data/
 
 # ──────────────────────────────────────────────────────────────────────────────
 # 1) OS / global ignores (cross-platform)
@@ -158,9 +159,11 @@ node_modules/
 # Virtual environments
 venv/
 env/
-*.env
 .env.local
 .env.*.local
+
+# Keep .env.example but ignore .env
+.env
 
 # Conda environment
 .conda/
@@ -214,4 +217,3 @@ Temporary Items/
 # If you want to ignore all hidden files except `.gitignore` itself:
 # .*/ 
 # !/.gitignore
-
