@@ -139,39 +139,56 @@ def generate_pdf_report(village_data: dict, detected_lang: str, ai_insights: str
     buffer.seek(0)
     return buffer.getvalue()
 
-# --- NEW: Combined UI Logic (Data + Plotly Charts below each domain) ---
+# --- NEW: Combined UI Logic (Dashboard Layout) ---
 def render_latest_view(village_data: dict, detected_lang: str = 'en'):
-    st.markdown(f"### Village: {village_data.get('village_name', 'Unknown')}")
-    st.markdown(f"**GP Name:** {village_data.get('gp_name', 'N/A')} | **Block:** {village_data.get('block_name', 'N/A')}")
+    st.markdown(f"### 🏡 Village: {village_data.get('village_name', 'Unknown')}")
+    st.markdown(f"**Gram Panchayat:** {village_data.get('gp_name', 'N/A')} &nbsp;|&nbsp; **Block:** {village_data.get('block_name', 'N/A')}")
     st.markdown("---")
 
     for domain_idx, domain_title, main_score_key, metrics in constants.domains:
         display_title = f"Domain {domain_idx}: {domain_title}"
         if detected_lang == 'pa': display_title += f" / {get_translation(domain_title)}"
             
-        with st.expander(display_title, expanded=True):
+        with st.expander(display_title, expanded=False):
+            
+            # ⬅️ UX POLISH: Create a 2-column layout inside the expander
+            col_text, col_chart = st.columns([1, 1.5], gap="large")
+            
             metric_names = []
             metric_values = []
             
-            # Print the text bullet points
-            for label, json_path in metrics:
-                val = get_nested(village_data, json_path)
-                display_label = get_translation(label) if detected_lang == 'pa' else label
-                st.markdown(f"- **{display_label}:** {val}")
-                
-                try:
-                    num_val = float(val)
-                    metric_names.append(display_label)
-                    metric_values.append(num_val)
-                except (ValueError, TypeError):
-                    pass
+            with col_text:
+                st.write("") # Add slight top padding
+                # Print the text data points
+                for label, json_path in metrics:
+                    val = get_nested(village_data, json_path)
+                    display_label = get_translation(label) if detected_lang == 'pa' else label
+                    
+                    # Cleaned up formatting: removed the bullet point, emphasized the label
+                    st.markdown(f"**{display_label}:** {val}")
+                    
+                    try:
+                        num_val = float(val)
+                        metric_names.append(display_label)
+                        metric_values.append(num_val)
+                    except (ValueError, TypeError):
+                        pass
             
-            # Render the Plotly Chart just below the bullet points!
-            if len(metric_values) > 0:
-                df = pd.DataFrame({"Metric": metric_names, "Value": metric_values}).sort_values(by="Value")
-                fig = px.bar(
-                    df, x="Value", y="Metric", orientation='h', text="Value", 
-                    color="Value", color_continuous_scale="Blues" if int(domain_idx) % 2 == 0 else "Teal"
-                )
-                fig.update_layout(xaxis_title="", yaxis_title="", showlegend=False, height=max(200, len(metric_names) * 45), margin=dict(l=0, r=0, t=20, b=0))
-                st.plotly_chart(fig, use_container_width=True)
+            with col_chart:
+                # Render the Plotly Chart side-by-side with the text
+                if len(metric_values) > 0:
+                    df = pd.DataFrame({"Metric": metric_names, "Value": metric_values}).sort_values(by="Value")
+                    fig = px.bar(
+                        df, x="Value", y="Metric", orientation='h', text="Value", 
+                        color="Value", color_continuous_scale="Blues" if int(domain_idx) % 2 == 0 else "Teal"
+                    )
+                    
+                    # UI Polish: Hide the color scale bar on the right to save space
+                    fig.update_layout(
+                        xaxis_title="", 
+                        yaxis_title="", 
+                        coloraxis_showscale=False, 
+                        height=max(250, len(metric_names) * 45), 
+                        margin=dict(l=0, r=0, t=10, b=0)
+                    )
+                    st.plotly_chart(fig, use_container_width=True)
