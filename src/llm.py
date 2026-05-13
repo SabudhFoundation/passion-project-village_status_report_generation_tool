@@ -28,11 +28,24 @@ def call_gemini_api(prompt: str):
 def classify_and_extract(user_input: str) -> dict:
     prompt = prompts.make_classify_prompt(user_input)
     response = call_gemini_api(prompt)
+    
+    # ⬅️ NEW: Catch API-level errors before trying to parse JSON
+    if response.startswith("Permanent Error"):
+        print(f"API Connection Failed: {response}")
+        # Return 'other' so the app doesn't crash, but you see it in the terminal
+        return {"intent": "other", "village_name": None} 
+    
     try:
-        # Clean potential markdown wrappers
-        clean_json = re.sub(r'```json|```', '', response).strip()
-        return json.loads(clean_json)
-    except json.JSONDecodeError:
+        match = re.search(r'\{.*\}', response, re.DOTALL)
+        if match:
+            clean_json = match.group(0)
+            return json.loads(clean_json)
+        else:
+            print(f"Failed to find JSON braces in response: {response}")
+            return {"intent": "other", "village_name": None}
+            
+    except json.JSONDecodeError as e:
+        print(f"JSON Parsing Error: {e}. Raw response was: {response}")
         return {"intent": "other", "village_name": None}
 
 def improvment_suggestion(text: str) -> str:

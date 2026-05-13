@@ -9,13 +9,28 @@ def make_classify_prompt(user_input: str) -> str:
     return textwrap.dedent(f"""
             You are a village status report assistant.
             Classify the user's intent as one of:
-            - status_report: User wants a village's status report. Extract village_name.
+            - status_report: User wants a village's status report. Extract village_name. 
+              (CRITICAL: If the user simply types a standalone noun or location name like "baluana", treat it as a status_report intent).
             - salutation: Greeting, thanks, or polite courtesies.
             - help_request: Asking how you can help or asking about your scope.
             - other: Something else.
 
-            Return ONLY valid JSON:
-            {{"intent": "status_report|salutation|help_request|other", "village_name": "extracted_name_or_null"}}
+            Return ONLY a raw, valid JSON dictionary. Do not include markdown blocks (```json) and do not include conversational text.
+            Schema: {{"intent": "status_report|salutation|help_request|other", "village_name": "extracted_name_or_null"}}
+            
+            --- EXAMPLES ---
+            User message: "show me baluana" 
+            {{"intent": "status_report", "village_name": "baluana"}}
+            
+            User message: "bangi nehal singh" 
+            {{"intent": "status_report", "village_name": "bangi nehal singh"}}
+            
+            User message: "hi there" 
+            {{"intent": "salutation", "village_name": null}}
+            
+            User message: "what do you do?" 
+            {{"intent": "help_request", "village_name": null}}
+            ----------------
             
             User message: {user_input}
             """).strip()
