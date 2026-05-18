@@ -57,3 +57,20 @@ Please provide exactly three sections:
 
 Format the output clearly using Markdown. Be objective, precise, and base your analysis strictly on the provided data.
 """
+
+VILLAGE_COMPARISON_PROMPT = """
+You are an expert rural development analyst. Compare the following two villages based on their data.
+
+Village 1 Data ({v1_name}):
+{v1_data}
+
+Village 2 Data ({v2_name}):
+{v2_data}
+
+Please provide exactly three sections:
+1. **Head-to-Head Comparison:** 3-4 bullet points comparing their performance across major domains (Sanitation, Governance, Water Security, Employment). Explicitly highlight who is outperforming the other and cite the specific scores.
+2. **Shared Weaknesses:** 1-2 bullet points identifying areas where BOTH villages are struggling and could benefit from a shared block-level intervention.
+3. **Strategic Conclusion:** A brief summary determining which village requires more immediate administrative attention and funding based on the data.
+
+Format the output clearly using Markdown. Be objective, precise, and base your analysis strictly on the provided data.
+"""

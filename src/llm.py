@@ -7,11 +7,15 @@ from src import prompts
 
 client = genai.Client(api_key=settings.API_KEY)
 
+from tenacity import retry, stop_after_attempt, wait_exponential
+
+# This tells Python: "Try 4 times. Wait 2 seconds, then 4 seconds, then 8 seconds between tries."
 @retry(
-    retry=retry_if_exception_type(genai.errors.ClientError),
-    wait=wait_exponential(multiplier=2, min=4, max=60),
-    stop=stop_after_attempt(5)
+    stop=stop_after_attempt(4), 
+    wait=wait_exponential(multiplier=1, min=2, max=10),
+    reraise=True
 )
+
 def call_gemini_api(prompt: str):
     try:
         response = client.models.generate_content(
@@ -53,22 +57,33 @@ def improvment_suggestion(text: str) -> str:
     suggestion = call_gemini_api(prompt)
     return suggestion.strip()
 
-def analyze_village_data(village_data: dict, lang: str = 'en') -> str:
-    """Passes village data to Gemini to generate insights and solutions."""
+def analyze_village_data(village_data, lang: str = 'en') -> str:
+    """Passes single or multiple village datasets to Gemini to generate insights."""
     
-    # Convert the MongoDB dictionary to a string so the LLM can read it. 
-    # default=str ensures things like MongoDB ObjectIds don't crash the JSON parser.
-    data_str = json.dumps(village_data, indent=2, default=str)
+    # --- Check if we are in Comparison Mode ---
+    if isinstance(village_data, list) and len(village_data) == 2:
+        v1, v2 = village_data
+        v1_str = json.dumps(v1, indent=2, default=str)
+        v2_str = json.dumps(v2, indent=2, default=str)
+        
+        prompt = prompts.VILLAGE_COMPARISON_PROMPT.format(
+            v1_name=v1.get('village_name', 'Village 1'), v1_data=v1_str,
+            v2_name=v2.get('village_name', 'Village 2'), v2_data=v2_str
+        )
+    # --- Otherwise, Single Village Mode ---
+    else:
+        # Just in case a single village gets passed as a 1-item list
+        if isinstance(village_data, list):
+            village_data = village_data[0]
+            
+        data_str = json.dumps(village_data, indent=2, default=str)
+        prompt = prompts.VILLAGE_ANALYSIS_PROMPT.format(village_data=data_str)
     
-    # Format the prompt with the data
-    prompt = prompts.VILLAGE_ANALYSIS_PROMPT.format(village_data=data_str)
-    
-    # If the user selected Punjabi, instruct the model to translate its analysis
+    # Handle Translation
     if lang == 'pa':
         prompt += "\n\nIMPORTANT: Please provide your entire response in the Punjabi language."
         
     try:
-        # Re-use your existing Gemini API calling function here
         response = call_gemini_api(prompt) 
         return response
     except Exception as e:
