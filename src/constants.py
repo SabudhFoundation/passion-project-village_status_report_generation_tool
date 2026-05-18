@@ -1,3 +1,37 @@
+# --- Localization Dictionary (O(1) Memory Lookup) ---
+PUNJABI_LABELS = {
+    # Sanitation & Waste Management
+    "ODF Status": "ਓਡੀਐਫ ਸਥਿਤੀ",
+    "Waste Segregation Sheds": "ਕੂੜਾ ਵੱਖ ਕਰਨ ਵਾਲੇ ਸ਼ੈੱਡ",
+    "Drainage Facility": "ਪਾਣੀ ਨਿਕਾਸੀ ਸਹੂਲਤ",
+    "Community Compost Pits": "ਸਾਂਝੇ ਖਾਦ ਟੋਏ",
+    
+    # Governance & LSDG Performance
+    "Overall Category": "ਕੁੱਲ ਸ਼੍ਰੇਣੀ",
+    "Poverty Free Score": "ਗਰੀਬੀ ਮੁਕਤ ਸਕੋਰ",
+    "Healthy Village Score": "ਸਿਹਤਮੰਦ ਪਿੰਡ ਸਕੋਰ",
+    "Child Friendly Score": "ਬਾਲ ਅਨੁਕੂਲ ਸਕੋਰ",
+    "Socially Just Score": "ਸਮਾਜਿਕ ਨਿਆਂ ਸਕੋਰ",
+    
+    # Water Security (JJM)
+    "JJM Certification Status": "JJM ਪ੍ਰਮਾਣੀਕਰਨ ਸਥਿਤੀ",
+    "PWS Available": "PWS ਉਪਲਬਧ ਹੈ",
+    "Total Households": "ਕੁੱਲ ਘਰ",
+    "Total Tap Connections": "ਕੁੱਲ ਟੂਟੀ ਕਨੈਕਸ਼ਨ",
+    
+    # Employment (MGNREGA)
+    "Total Registered HH": "ਕੁੱਲ ਰਜਿਸਟਰਡ ਘਰ",
+    "Total Registered Persons": "ਕੁੱਲ ਰਜਿਸਟਰਡ ਵਿਅਕਤੀ",
+    "SC Persons Employed": "ਰੁਜ਼ਗਾਰ ਪ੍ਰਾਪਤ SC ਵਿਅਕਤੀ",
+    "Female Persons Employed": "ਰੁਜ਼ਗਾਰ ਪ੍ਰਾਪਤ ਔਰਤਾਂ",
+    
+    # UI Domains
+    "Sanitation & Waste Management": "ਸੈਨੀਟੇਸ਼ਨ ਅਤੇ ਰਹਿੰਦ-ਖੂੰਹਦ ਪ੍ਰਬੰਧਨ",
+    "Governance & LSDG Performance": "ਗਵਰਨੈਂਸ ਅਤੇ LSDG ਪ੍ਰਦਰਸ਼ਨ",
+    "Water Security (JJM)": "ਪਾਣੀ ਦੀ ਸੁਰੱਖਿਆ (JJM)",
+    "Employment (MGNREGA)": "ਰੁਜ਼ਗਾਰ (MGNREGA)",
+}
+
 # Maps (Domain_Index, Domain_Title, Main_Score_Key, [ (Metric_Label, JSON_Path) ])
 domains = [
     (1, "Sanitation & Waste Management", "sanitation.odf_declaration_status", [
