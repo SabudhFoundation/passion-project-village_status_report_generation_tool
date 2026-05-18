@@ -4,6 +4,7 @@ from st_aggrid import AgGrid, GridOptionsBuilder, GridUpdateMode, DataReturnMode
 from src import utils, llm, database, prompts
 from config import settings
 from deep_translator import GoogleTranslator
+import difflib
 
 # --- 1. CACHING DATA CALLS ---
 # This prevents querying MongoDB multiple times for the same village during reruns
@@ -15,7 +16,7 @@ def fetch_village_data(village_name: str):
 def search_villages(village_name: str):
     return database.search_villages_for_grid(village_name)
 
-# --- 2. MODULAR SESSION STATE ---
+# --- 2.new MODULAR SESSION STATE ---
 def initialize_session_state():
     """Initializes all required session state variables."""
     defaults = {
@@ -23,7 +24,7 @@ def initialize_session_state():
         'detected_lang': 'en',
         'extracted_candidates': [],
         'confirmed': False,
-        'selected_village_name': None
+        'selected_villages': [] # ⬅️ CHANGED: Now a list to hold 1 or 2 villages
     }
     for key, value in defaults.items():
         if key not in st.session_state:
@@ -47,11 +48,12 @@ def main():
     if st.session_state['detected_lang'] == 'pa':
         input_placeholder = "ਪਿੰਡ ਦਾ ਨਾਮ ਦਰਜ ਕਰੋ ਜਾਂ ਸਵਾਲ ਪੁੱਛੋ..."
 
+    
     if prompt := st.chat_input(input_placeholder):
         
-        # ⬅️ NEW: Reset the report state so the old report disappears!
+        # ⬅️ UPDATE: Reset the new selected_villages list
         st.session_state['confirmed'] = False
-        st.session_state['selected_village_name'] = None
+        st.session_state['selected_villages'] = [] 
         st.session_state['extracted_candidates'] = None
         
         st.session_state.messages.append({"role": "user", "content": prompt})
@@ -65,10 +67,14 @@ def main():
             lang = st.session_state['detected_lang']
 
             # Classify Intent using the LLM
-            classification = llm.classify_and_extract(prompt)
+            try:
+                classification = llm.classify_and_extract(prompt)
+            except Exception as e:
+                st.error("⚠️ Network connection lost while contacting the AI. Please check your internet and try again.")
+                print(f"API Connection Error: {e}")
+                st.stop() # Stops the rest of the app from running and crashing
             intent = classification.get("intent")
             village_name = classification.get("village_name")
-#newwwwwwwww
             
 
             # ⬅️ Translate village name to English for MongoDB search if detected as Punjabi
@@ -102,10 +108,34 @@ def main():
                     with st.chat_message("assistant"): st.success(msg)
                     st.session_state.messages.append({"role": "assistant", "content": msg})
                 else:
-                    msg = f"Sorry, I couldn't find a village named '{village_name}'. Please check the spelling."
-                    if lang == 'pa': msg = utils.get_translation(msg)
-                    with st.chat_message("assistant"): st.error(msg)
-                    st.session_state.messages.append({"role": "assistant", "content": msg})
+                    # --- Smart Spell Checker ---
+                    try:
+                        all_village_names = database.get_all_villages_list()
+                        # Find top 2 closest matches (cutoff=0.5 means at least 50% similar)
+                        closest_matches = difflib.get_close_matches(village_name, all_village_names, n=2, cutoff=0.5)
+                        
+                        if closest_matches:
+                            suggestions = " or ".join(f"**{match}**" for match in closest_matches)
+                            msg = f"I couldn't find '{village_name}' village. Did you mean {suggestions}?"
+                            # Add manual Punjabi translation for the suggestion feature
+                            if lang == 'pa': 
+                                msg = f"ਮੈਨੂੰ '{village_name}' ਨਹੀਂ ਮਿਲਿਆ। ਕੀ ਤੁਹਾਡਾ ਮਤਲਬ {suggestions} ਸੀ?"
+                                
+                            with st.chat_message("assistant"): st.warning(msg)
+                            st.session_state.messages.append({"role": "assistant", "content": msg})
+                        else:
+                            msg = f"Sorry, I couldn't find a village named '{village_name}'. Please check the spelling."
+                            if lang == 'pa': msg = utils.get_translation(msg)
+                            with st.chat_message("assistant"): st.error(msg)
+                            st.session_state.messages.append({"role": "assistant", "content": msg})
+                            
+                    except Exception as e:
+                        # Fallback if DB fetch fails
+                        msg = f"Sorry, I couldn't find a village named '{village_name}'. Please check the spelling."
+                        if lang == 'pa': msg = utils.get_translation(msg)
+                        with st.chat_message("assistant"): st.error(msg)
+                        st.session_state.messages.append({"role": "assistant", "content": msg})
+                        print(f"Spellcheck Error: {e}")
                 
                 # --- The Fallback Block ---
             else:
@@ -117,10 +147,10 @@ def main():
                     st.warning(msg)
                 st.session_state.messages.append({"role": "assistant", "content": msg})
 
-    # --- 4. AgGrid Selection Block ---
-    # --- 4. Selection & Settings UI Block ---
+
+    # --- 4.new Selection & Settings UI Block ---
     if st.session_state.get('extracted_candidates') and not st.session_state['confirmed']:
-        st.markdown("### 📍 Select a Village")
+        st.markdown("### 📍 Select 1 or 2 Villages to Compare")
         
         df = pd.DataFrame(st.session_state['extracted_candidates'])
         display_df = df.rename(columns={
@@ -129,9 +159,9 @@ def main():
             "block_name": "Block"
         })
         
-        # UI Polish: Remove checkboxes for a cleaner look, enable full-row clicking
+        # ⬅️ CHANGED: Allow 'multiple' selection and bring back checkboxes for clarity
         gb = GridOptionsBuilder.from_dataframe(display_df)
-        gb.configure_selection('single', use_checkbox=False) 
+        gb.configure_selection('multiple', use_checkbox=True) 
         grid_options = gb.build()
 
         grid_response = AgGrid(
@@ -141,17 +171,27 @@ def main():
             data_return_mode=DataReturnMode.FILTERED_AND_SORTED,
             fit_columns_on_grid_load=True,
             theme='streamlit',
-            height=200, # Constrain height so the user doesn't have to scroll on large results
+            height=200, 
             key="village_grid"
         )
 
         selected = grid_response.get('selected_rows')
         
-        # Show Settings only if a row is actively selected
+        # Show Settings only if 1 or more rows are actively selected
         if selected is not None and len(selected) > 0:
             st.divider()
             
-            # UX Polish: Stacked layout
+            # ⬅️ UPGRADE: Graceful Truncation instead of Hard Blocking
+            if len(selected) > 2:
+                st.warning(f"⚠️ You selected {len(selected)} villages. To keep the dashboard visually clean, we will only compare the first two.")
+                
+                # Safely slice the selection down to just the first 2 items
+                if isinstance(selected, pd.DataFrame):
+                    selected = selected.head(2)
+                else:
+                    selected = selected[:2]
+
+            # Stacked layout
             default_idx = 1 if st.session_state['detected_lang'] == 'pa' else 0
             report_lang = st.radio(
                 "📄 Select Report Language:", 
@@ -160,94 +200,162 @@ def main():
                 horizontal=True
             )
 
-            st.write("") # Add a little vertical breathing room
+            st.write("") 
             
-            # Button is now below the radio selection
-            if st.button("✅ Generate Report", type="primary"):
+            # Dynamic button text
+            btn_text = "✅ Generate Report" if len(selected) == 1 else "📊 Compare Villages"
+            
+            if st.button(btn_text, type="primary"):
                 
-                # Save language choice
                 st.session_state['detected_lang'] = 'pa' if report_lang == "Punjabi (ਪੰਜਾਬੀ)" else 'en'
 
-                # Extract name safely
+                # Extract a list of village names
+                selected_names = []
                 if isinstance(selected, pd.DataFrame):
-                    st.session_state['selected_village_name'] = selected.iloc[0]['Village Name']
+                    selected_names = selected['Village Name'].tolist()
                 else:
-                    st.session_state['selected_village_name'] = selected[0]['Village Name']
-                
+                    selected_names = [row['Village Name'] for row in selected]
+                    
+                st.session_state['selected_villages'] = selected_names
                 st.session_state['confirmed'] = True
                 st.rerun()
 
-    # --- 5. Render Final Report ---
-    if st.session_state['confirmed'] and st.session_state['selected_village_name']:
+    
+# --- 5. Render Final Report ---
+    if st.session_state['confirmed'] and st.session_state.get('selected_villages'):
         
         with st.spinner("Fetching data from database..."):
-            village_data = fetch_village_data(st.session_state['selected_village_name'])
+            villages_data = []
+            for v_name in st.session_state['selected_villages']:
+                data = fetch_village_data(v_name)
+                if data:
+                    villages_data.append(data)
         
-        if village_data:
-            # Render the UI (Text + Charts inside expanders)
-            utils.render_latest_view(village_data, st.session_state['detected_lang'])
+        if villages_data:
+            # Render the UI
+            utils.render_latest_view(villages_data, st.session_state['detected_lang'])
             
-            # --- AI Insights Section (with Error Handling) ---
-            st.divider() 
-            insight_header = "🧠 AI-Generated Insights & Recommendations"
-            if st.session_state['detected_lang'] == 'pa':
-                insight_header = "🧠 AI-ਦੁਆਰਾ ਤਿਆਰ ਕੀਤੀਆਂ ਗਈਆਂ ਜਾਣਕਾਰੀਆਂ ਅਤੇ ਸਿਫ਼ਾਰਸ਼ਾਂ"
-            st.subheader(insight_header)
-            
-            cache_key = f"insights_{st.session_state['selected_village_name']}_{st.session_state['detected_lang']}"
-            
-            if cache_key not in st.session_state:
-                with st.spinner("Analyzing village data for insights..."):
-                    try:
-                        # Attempt to get insights
-                        insights = llm.analyze_village_data(
-                            village_data=village_data, 
-                            lang=st.session_state['detected_lang']
-                        )
-                        st.session_state[cache_key] = insights
-                    except Exception as e:
-                        # Fallback if the API fails (e.g., Quota hit, network error)
-                        error_msg = "⚠️ Could not generate insights at this time due to high traffic. Please try again later."
-                        st.session_state[cache_key] = error_msg
-                        print(f"LLM Error: {e}") # Log to terminal for the dev
-            
-            # Display Insights
-            if "⚠️" in st.session_state[cache_key]:
-                st.warning(st.session_state[cache_key])
-            else:
-                st.markdown(st.session_state[cache_key])
-            
-            # --- PDF Download Button (with Error Handling) ---
-            st.divider()
-            
-            try:
-                # We wrap the PDF generation in a try/except because ReportLab 
-                # can crash if it encounters unexpected nulls or missing fonts
-                pdf_bytes = utils.generate_pdf_report(
-                    village_data, 
-                    st.session_state['detected_lang'], 
-                    st.session_state[cache_key] 
-                )
+            # --- Single Village Mode (LLM & PDF) ---
+            if len(villages_data) == 1:
+                village_data = villages_data[0]
+                v_name = village_data.get('village_name', 'Unknown') # ⬅️ Safe name extraction
                 
-                btn_label = "📥 Download Complete PDF Report" if st.session_state['detected_lang'] != 'pa' else "📥 ਪੂਰੀ ਪੀਡੀਐਫ ਰਿਪੋਰਟ ਡਾਊਨਲੋਡ ਕਰੋ"
+                # --- AI Insights Section ---
+                st.divider() 
+                insight_header = "🧠 AI-Generated Insights & Recommendations"
+                if st.session_state['detected_lang'] == 'pa':
+                    insight_header = "🧠 AI-ਦੁਆਰਾ ਤਿਆਰ ਕੀਤੀਆਂ ਗਈਆਂ ਜਾਣਕਾਰੀਆਂ ਅਤੇ ਸਿਫ਼ਾਰਸ਼ਾਂ"
+                st.subheader(insight_header)
                 
-                # UI Polish: Center the download button
-                col_spacer1, col_btn, col_spacer2 = st.columns([1, 2, 1])
-                with col_btn:
-                    st.download_button(
-                        label=btn_label, 
-                        data=pdf_bytes, 
-                        file_name=f"{village_data['village_name']}_report.pdf", 
-                        mime="application/pdf",
-                        use_container_width=True,
-                        type="primary"
+                # ⬅️ FIXED: Use the safe v_name instead of the old session state variable
+                cache_key = f"insights_{v_name}_{st.session_state['detected_lang']}"
+                
+                if cache_key not in st.session_state:
+                    with st.spinner("Analyzing village data for insights..."):
+                        try:
+                            insights = llm.analyze_village_data(
+                                village_data=village_data, 
+                                lang=st.session_state['detected_lang']
+                            )
+                            st.session_state[cache_key] = insights
+                        except Exception as e:
+                            error_msg = "⚠️ Could not generate insights at this time due to high traffic. Please try again later."
+                            st.session_state[cache_key] = error_msg
+                            print(f"LLM Error: {e}")
+                
+                if "⚠️" in st.session_state[cache_key]:
+                    st.warning(st.session_state[cache_key])
+                else:
+                    st.markdown(st.session_state[cache_key])
+
+                
+                
+                # --- PDF Download Button ---
+                st.divider()
+                try:
+                    pdf_bytes = utils.generate_pdf_report(
+                        village_data, 
+                        st.session_state['detected_lang'], 
+                        st.session_state[cache_key] 
                     )
-            except Exception as e:
-                st.error("🚨 An error occurred while compiling the PDF. The data may be incomplete.")
-                print(f"PDF Generation Error: {e}")
+                    
+                    btn_label = "📥 Download Complete PDF Report" if st.session_state['detected_lang'] != 'pa' else "📥 ਪੂਰੀ ਪੀਡੀਐਫ ਰਿਪੋਰਟ ਡਾਊਨਲੋਡ ਕਰੋ"
+                    
+                    col_spacer1, col_btn, col_spacer2 = st.columns([1, 2, 1])
+                    with col_btn:
+                        st.download_button(
+                            label=btn_label, 
+                            data=pdf_bytes, 
+                            file_name=f"{v_name}_report.pdf", # ⬅️ FIXED: Use safe v_name here too
+                            mime="application/pdf",
+                            use_container_width=True,
+                            type="primary"
+                        )
+                except Exception as e:
+                    st.error("🚨 An error occurred while compiling the PDF. The data may be incomplete.")
+                    print(f"PDF Generation Error: {e}")
+                
+            # --- Comparison Mode (LLM) ---
+            else:
+                st.divider()
+                insight_header = "🧠 Comparative AI Insights"
+                if st.session_state['detected_lang'] == 'pa':
+                    insight_header = "🧠 ਤੁਲਨਾਤਮਕ AI ਜਾਣਕਾਰੀਆਂ"
+                st.subheader(insight_header)
+                
+                v1_name = villages_data[0].get('village_name', 'V1')
+                v2_name = villages_data[1].get('village_name', 'V2')
+                
+                # Unique cache key for this specific pair of villages
+                cache_key = f"compare_{v1_name}_{v2_name}_{st.session_state['detected_lang']}"
+                
+                if cache_key not in st.session_state:
+                    with st.spinner(f"Analyzing {v1_name} vs {v2_name}..."):
+                        try:
+                            # Pass the LIST of two villages to our upgraded LLM function
+                            insights = llm.analyze_village_data(
+                                village_data=villages_data, 
+                                lang=st.session_state['detected_lang']
+                            )
+                            st.session_state[cache_key] = insights
+                        except Exception as e:
+                            st.session_state[cache_key] = "⚠️ Could not generate comparison at this time."
+                            print(f"LLM Error: {e}")
+                
+                if "⚠️" in st.session_state[cache_key]:
+                    st.warning(st.session_state[cache_key])
+                else:
+                    st.markdown(st.session_state[cache_key])
+                    
+                # --- PDF Download Button for Comparison ---
+                st.divider()
+                try:
+                    pdf_bytes = utils.generate_comparison_pdf_report(
+                        villages_data, 
+                        st.session_state['detected_lang'], 
+                        st.session_state[cache_key] 
+                    )
+                    
+                    btn_label = "📥 Download Comparison PDF" if st.session_state['detected_lang'] != 'pa' else "📥 ਤੁਲਨਾਤਮਕ ਪੀਡੀਐਫ ਡਾਊਨਲੋਡ ਕਰੋ"
+                    
+                    col_spacer1, col_btn, col_spacer2 = st.columns([1, 2, 1])
+                    with col_btn:
+                        st.download_button(
+                            label=btn_label, 
+                            data=pdf_bytes, 
+                            file_name=f"Comparison_{v1_name}_vs_{v2_name}.pdf", 
+                            mime="application/pdf",
+                            use_container_width=True,
+                            type="primary"
+                        )
+                except Exception as e:
+                    st.error("🚨 An error occurred while compiling the Comparison PDF.")
+                    print(f"PDF Generation Error: {e}")
                 
         else:
-            st.error(f"Failed to load data for {st.session_state['selected_village_name']}. The database might be unreachable.")
+            # ⬅️ FIXED: Join the list of requested villages into a string for the error message
+            requested = ", ".join(st.session_state['selected_villages'])
+            st.error(f"Failed to load data for {requested}. The database might be unreachable.")
 
 if __name__ == "__main__":
     main()
