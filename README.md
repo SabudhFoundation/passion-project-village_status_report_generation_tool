@@ -22,30 +22,8 @@ MongoDB Caching: Efficiently caches database calls to prevent redundant network 
 📂 Project Architecture
 The repository is structured as a monolithic application containing sub-packages for each tool, sharing a root configuration.
 
-Integrated_Tool/
-├── .env                              # Master environment variables (API keys, Configs)
-├── app.py                            # The Master Streamlit Router
-├── fonts/                            # Custom fonts for PDF generation
-│   ├── NotoSansGurmukhi-Regular.ttf  
-│   └── NotoSansGurmukhi-Bold.ttf
-│
-├── school_report_gen_tool/           # 🏫 School Tool Package
-│   ├── __init__.py
-│   └── src/
-│       ├── __init__.py
-│       ├── main.py                   # School UI logic
-│       ├── llm.py                    # School-specific LLM prompts/analysis
-│       ├── database.py               # MongoDB fetching
-│       └── utils.py                  # School PDF compilation
-│
-└── village_report_gen_tool/          # 🏘️ Village Tool Package
-    ├── __init__.py
-    ├── app.py                        # Village UI logic
-    └── src/
-        ├── __init__.py
-        ├── llm.py
-        ├── database.py
-        └── utils.py
+<img width="945" height="645" alt="image" src="https://github.com/user-attachments/assets/9ea33d30-16e8-4eba-a721-96919e36cb3a" />
+
 
 🛠️ Tech Stack
 
@@ -74,22 +52,8 @@ pip install -r requirements.txt
 
 3. Setup Environment Variables
 Create a .env file in the root directory (alongside the master app.py). It must include the variables defined in your Pydantic settings. Example:
-PAGE_TITLE="Village Status Report Tool"
-PAGE_LAYOUT="wide"
-LOG_LEVEL="INFO"
-MONGO_URI="mongodb+srv://<username>:<password>@<cluster-url>/"
-SCHOOL_FILENAME="school_data.xlsx"
-SCHOOL_LIST_PATH="school_report_gen_tool/src/data/school_data.xlsx"
-API_KEY="your_google_api_key_here"
-MODEL_NAME="gemini"
-GEMINI_MODEL_NAME="gemini-2.5-flash-lite"
-MODEL_TEMP=0.7
-ENABLE_REMARK_REPHRASE=True
-MAX_REPHRASE_RETRIES=3
-FUZZY_SCORE_THRESHOLD=80
-PUNJABI_REGULAR_FONT_PATH="fonts/NotoSansGurmukhi-Regular.ttf"
-PUNJABI_BOLD_FONT_PATH="fonts/NotoSansGurmukhi-Bold.ttf"
-PUNJABI_FONT_LOADED=True
+<img width="636" height="407" alt="image" src="https://github.com/user-attachments/assets/e5cb363e-aa22-4184-9f4b-93a5bf89b191" />
+
 
 5. Font Configuration (Crucial for Punjabi PDFs)
 Ensure the fonts/ directory exists in the root folder and contains the required .ttf files specified in your .env. Without these, Punjabi characters will render as missing blocks in PDF exports.
