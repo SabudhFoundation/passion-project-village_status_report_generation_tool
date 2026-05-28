@@ -1,3 +1,50 @@
+# --- Localization Dictionary (Speeds up the app significantly) ---
+PUNJABI_LABELS = {
+    # Proper Nouns & UI Labels (Add any other districts here)
+    "Ropar": "ਰੋਪੜ",
+    "District": "ਜ਼ਿਲ੍ਹਾ", # Change to "ਜਿਲ੍ਹਾ" or "ਜ਼ਿਲਾ" if you prefer
+    "Block": "ਬਲਾਕ",
+    "Assessment Date": "ਮੁਲਾਂਕਣ ਤਾਰੀਖ",
+    "UDISE Code": "ਯੂ-ਡਾਈਸ ਕੋਡ",
+    
+    # Sanitation & Waste Management
+    "ODF Status": "ਓਡੀਐਫ ਸਥਿਤੀ",
+    "Waste Segregation Sheds": "ਕੂੜਾ ਵੱਖ ਕਰਨ ਵਾਲੇ ਸ਼ੈੱਡ",
+    
+    # Schools
+    "Safety and Hygiene": "ਸੁਰੱਖਿਆ ਅਤੇ ਸਫਾਈ",
+    "Stimulating School Environment": "ਸਕੂਲ ਦੇ ਵਾਤਾਵਰਣ ਨੂੰ ਉਤੇਜਿਤ ਕਰਨਾ",
+    "Physical Development Opportunities": "ਸਰੀਰਕ ਵਿਕਾਸ ਦੇ ਮੌਕੇ",
+    "Smart School Facilities": "ਸਮਾਰਟ ਸਕੂਲ ਸਹੂਲਤਾਂ",
+    "Domain1 Score Percentage": "ਡੋਮੇਨ 1 ਸਕੋਰ ਪ੍ਰਤੀਸ਼ਤ",
+    "Domain2 Score Percentage": "ਡੋਮੇਨ 2 ਸਕੋਰ ਪ੍ਰਤੀਸ਼ਤ",
+    "Domain3 Score Percentage": "ਡੋਮੇਨ 3 ਸਕੋਰ ਪ੍ਰਤੀਸ਼ਤ",
+    "Domain4 Score Percentage": "ਡੋਮੇਨ 4 ਸਕੋਰ ਪ੍ਰਤੀਸ਼ਤ",
+    
+    # Villages
+    "Sanitation & Waste Management": "ਸੈਨੀਟੇਸ਼ਨ ਅਤੇ ਕੂੜਾ ਪ੍ਰਬੰਧਨ",
+    "Governance & LSDG Performance": "ਗਵਰਨੈਂਸ ਅਤੇ LSDG ਪ੍ਰਦਰਸ਼ਨ",
+    "Water Security (JJM)": "ਜਲ ਸੁਰੱਖਿਆ (JJM)",
+    "Employment (MGNREGA)": "ਰੁਜ਼ਗਾਰ (ਮਨਰੇਗਾ)",
+    "ODF Status": "ਓਡੀਐਫ ਸਥਿਤੀ",
+    "Waste Segregation Sheds": "ਕੂੜਾ ਵੱਖ ਕਰਨ ਵਾਲੇ ਸ਼ੈੱਡ",
+    "Drainage Facility": "ਪਾਣੀ ਨਿਕਾਸੀ ਸਹੂਲਤ",
+    "Community Compost Pits": "ਸਾਂਝੇ ਖਾਦ ਟੋਏ",
+    "Overall Category": "ਕੁੱਲ ਸ਼੍ਰੇਣੀ",
+    "Poverty Free Score": "ਗਰੀਬੀ ਮੁਕਤ ਸਕੋਰ",
+    "Healthy Village Score": "ਸਿਹਤਮੰਦ ਪਿੰਡ ਸਕੋਰ",
+    "Child Friendly Score": "ਬਾਲ ਅਨੁਕੂਲ ਸਕੋਰ",
+    "Socially Just Score": "ਸਮਾਜਿਕ ਨਿਆਂ ਸਕੋਰ",
+    "JJM Certification Status": "JJM ਪ੍ਰਮਾਣੀਕਰਨ ਸਥਿਤੀ",
+    "PWS Available": "PWS ਉਪਲਬਧ ਹੈ",
+    "Total Households": "ਕੁੱਲ ਘਰ",
+    "Total Tap Connections": "ਕੁੱਲ ਟੂਟੀ ਕਨੈਕਸ਼ਨ",
+    "Total Registered HH": "ਕੁੱਲ ਰਜਿਸਟਰਡ ਘਰ",
+    "Total Registered Persons": "ਕੁੱਲ ਰਜਿਸਟਰਡ ਵਿਅਕਤੀ",
+    "SC Persons Employed": "ਰੁਜ਼ਗਾਰ ਪ੍ਰਾਪਤ SC ਵਿਅਕਤੀ",
+    "Female Persons Employed": "ਰੁਜ਼ਗਾਰ ਪ੍ਰਾਪਤ ਔਰਤਾਂ"
+}
+
 # ==========================================
 # VILLAGE REPORT CONSTANTS
 # ==========================================
@@ -28,12 +75,6 @@ VILLAGE_DOMAINS = [
         ("Total Registered Persons", "employment.total_registered_persons"),
         ("SC Persons Employed", "employment.sc_persons"),
         ("Female Persons Employed", "employment.female_persons")
-    ]),
-    (5, "Health & Infrastructure", "health.phc_status", [
-        ("PHC Available", "health.phc_available"),
-        ("Immunization Rate", "health.immunization_rate"),
-        ("Community Center Status", "infrastructure.community_center"),
-        ("Anganwadi Operational", "health.anganwadi_status")
     ])
 ]
 

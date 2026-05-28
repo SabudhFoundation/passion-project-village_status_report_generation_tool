@@ -11,8 +11,15 @@ def get_village_by_name(village_name: str) -> dict:
     """Fetches a specific village by exact or regex match."""
     if not village_name:
         return None
+        
     query = {"village_name": {"$regex": f"^{village_name.strip()}$", "$options": "i"}}
-    return collection.find_one(query)
+    doc = collection.find_one(query)
+    
+    # NEW: Convert the MongoDB ObjectId to a standard string to prevent Streamlit Arrow errors
+    if doc and '_id' in doc:
+        doc['_id'] = str(doc['_id'])
+        
+    return doc
 
 def get_all_villages_list() -> list:
     """Returns a simple list of all village names for fuzzy matching/dropdowns."""

@@ -1,175 +1,151 @@
 import streamlit as st
 import pandas as pd
-from st_aggrid import AgGrid, GridOptionsBuilder, GridUpdateMode, DataReturnMode
-from deep_translator import GoogleTranslator
+from st_aggrid import AgGrid, GridOptionsBuilder, GridUpdateMode
+import re
+import difflib
 
 from src import utils, llm, database, prompts
 from src.config import settings
 
 def init_village_session_states():
-    """Initialize session states specific to the Village module to prevent collisions"""
-    if 'village_messages' not in st.session_state:
-        st.session_state['village_messages'] = [{"role": "assistant", "content": prompts.VILLAGE_WELCOME_PROMPT}]
-    if 'village_candidates' not in st.session_state:
-        st.session_state['village_candidates'] = []
-    if 'village_confirmed' not in st.session_state:
-        st.session_state['village_confirmed'] = False
-    if 'village_selected_name' not in st.session_state:
-        st.session_state['village_selected_name'] = None
+    defaults = {
+        'v_messages': [{"role": "assistant", "content": prompts.VILLAGE_WELCOME_PROMPT}],
+        'v_candidates': [],
+        'v_confirmed': False,
+        'v_selected_names': [],
+        'v_lang': 'en'
+    }
+    for key, value in defaults.items():
+        if key not in st.session_state:
+            st.session_state[key] = value
 
 def village_report_app():
     st.title("🏡 Village Status Report Generation")
-    
     init_village_session_states()
 
-    # --- Sidebar Language Toggle (Matches School Report) ---
-    with st.sidebar:
-        st.header("Settings / ਸੈਟਿੰਗਾਂ")
-        lang_choice = st.radio("Language / ਭਾਸ਼ਾ", ["English", "ਪੰਜਾਬੀ"], key="village_lang_toggle")
-        
-        if lang_choice == "ਪੰਜਾਬੀ":
-            st.session_state['detected_lang'] = 'pa'
-            if not settings.PUNJABI_FONT_LOADED:
-                utils.register_fonts()
-        else:
-            st.session_state['detected_lang'] = 'en'
-    # -------------------------------------------------------
-
-    lang = st.session_state['detected_lang']
-
-    # --- Render Chat History ---
-    for message in st.session_state['village_messages']:
+    lang = st.session_state['v_lang']
+    for message in st.session_state['v_messages'][-20:]:
         with st.chat_message(message["role"]):
             st.markdown(message["content"])
 
-    # --- Handle User Input ---
-    input_placeholder = "Enter village name or ask a question..."
-    if lang == 'pa':
-        input_placeholder = "ਪਿੰਡ ਦਾ ਨਾਮ ਦਰਜ ਕਰੋ ਜਾਂ ਸਵਾਲ ਪੁੱਛੋ..."
+    input_placeholder = "Enter village name(s) or ask a question..." if lang == 'en' else "ਪਿੰਡਾਂ ਦੇ ਨਾਮ ਦਰਜ ਕਰੋ ਜਾਂ ਸਵਾਲ ਪੁੱਛੋ..."
 
     if prompt := st.chat_input(input_placeholder):
+        st.session_state['v_confirmed'] = False
+        st.session_state['v_selected_names'] = []
+        st.session_state['v_candidates'] = []
         
-        # Reset the report state so the old report disappears
-        st.session_state['village_confirmed'] = False
-        st.session_state['village_selected_name'] = None
-        st.session_state['village_candidates'] = None
-        
-        st.session_state['village_messages'].append({"role": "user", "content": prompt})
-        with st.chat_message("user"): 
-            st.markdown(prompt)
+        st.session_state['v_messages'].append({"role": "user", "content": prompt})
+        with st.chat_message("user"): st.markdown(prompt)
 
         with st.spinner("Analyzing..."):
-            # Classify Intent using the LLM
+            # --- BULLETPROOF PUNJABI DETECTION ---
+            # langdetect fails on single words. Checking for Gurmukhi characters is 100% accurate.
+            is_punjabi = bool(re.search(r'[\u0A00-\u0A7F]', prompt))
+            lang = 'pa' if is_punjabi else 'en'
+            st.session_state['v_lang'] = lang
+            
+            # --- PASS DIRECTLY TO GEMINI ---
+            # Gemini reads Punjabi natively and is prompted to extract English names.
             classification = llm.classify_village_intent(prompt)
             intent = classification.get("intent")
-            village_name = classification.get("village_name")
+            village_names = classification.get("village_names", [])
 
-            # Translate village name to English for MongoDB search if detected as Punjabi
-            if village_name and lang == 'pa':
-                try:
-                    village_name = GoogleTranslator(source='pa', target='en').translate(village_name)
-                except:
-                    pass
-
-            # Handle different user intents
             if intent == "help_request":
-                msg = "I can help you generate status reports for villages. Just type the name of the village, e.g., 'Show me the report for Baluana'."
+                msg = "I can help you generate status reports for villages or compare them. Type names like 'Baluana'."
                 if lang == 'pa': msg = utils.get_translation(msg)
                 with st.chat_message("assistant"): st.info(msg)
-                st.session_state['village_messages'].append({"role": "assistant", "content": msg})
+                st.session_state['v_messages'].append({"role": "assistant", "content": msg})
 
             elif intent == "salutation":
                 msg = "Hello! How can I assist you with village reports today?"
-                if lang == 'pa': msg = utils.get_translation(msg)
+                if lang == 'pa': msg = "ਜੀ ਆਇਆਂ ਨੂੰ! ਅੱਜ ਮੈਂ ਪਿੰਡ ਦੀਆਂ ਰਿਪੋਰਟਾਂ ਵਿੱਚ ਤੁਹਾਡੀ ਕਿਵੇਂ ਮਦਦ ਕਰ ਸਕਦਾ ਹਾਂ?"
                 with st.chat_message("assistant"): st.success(msg)
-                st.session_state['village_messages'].append({"role": "assistant", "content": msg})
+                st.session_state['v_messages'].append({"role": "assistant", "content": msg})
 
-            elif intent == "status_report" and village_name:
-                candidates = database.search_villages_for_grid(village_name)
-                
-                if candidates:
-                    st.session_state['village_candidates'] = candidates
-                    msg = f"Found matches for '{village_name}'. Please select one from the table below."
+            elif intent == "status_report" and village_names:
+                all_candidates = []
+                missing_villages = []
+                all_village_names_db = database.get_all_villages_list()
+                db_names_lower_map = {name.lower(): name for name in all_village_names_db if name}
+
+                for v_name in village_names:
+                    candidates = database.search_villages_for_grid(v_name)
+                    if candidates:
+                        all_candidates.extend(candidates)
+                    else:
+                        closest_lower = difflib.get_close_matches(v_name.lower().strip(), db_names_lower_map.keys(), n=2, cutoff=0.65)
+                        if closest_lower:
+                            for match in [db_names_lower_map[m] for m in closest_lower]:
+                                match_cands = database.search_villages_for_grid(match)
+                                if match_cands: all_candidates.extend(match_cands)
+                        else:
+                            missing_villages.append(v_name)
+
+                if all_candidates:
+                    st.session_state['v_candidates'] = list({c['village_name']: c for c in all_candidates}.values())
+                    msg = "Found matches. Please select 1 or 2 villages from the table below."
                     if lang == 'pa': msg = utils.get_translation(msg)
                     with st.chat_message("assistant"): st.success(msg)
-                    st.session_state['village_messages'].append({"role": "assistant", "content": msg})
+                    st.session_state['v_messages'].append({"role": "assistant", "content": msg})
                 else:
-                    msg = f"Sorry, I couldn't find a village named '{village_name}'. Please check the spelling."
+                    msg = "Sorry, I couldn't find matches for the requested villages. Please check spelling."
                     if lang == 'pa': msg = utils.get_translation(msg)
                     with st.chat_message("assistant"): st.error(msg)
-                    st.session_state['village_messages'].append({"role": "assistant", "content": msg})
+                    st.session_state['v_messages'].append({"role": "assistant", "content": msg})
+            else:
+                msg = "I'm not sure I understood. Could you provide the village name?"
+                if lang == 'pa': msg = utils.get_translation(msg)
+                with st.chat_message("assistant"): st.warning(msg)
+                st.session_state['v_messages'].append({"role": "assistant", "content": msg})
 
-    # --- AgGrid Selection Block ---
-    if st.session_state.get('village_candidates') and not st.session_state['village_confirmed']:
-        df = pd.DataFrame(st.session_state['village_candidates'])
+    # --- UI Grid Selection ---
+    if st.session_state.get('v_candidates') and not st.session_state['v_confirmed']:
+        df = pd.DataFrame(st.session_state['v_candidates']).rename(columns={"village_name": "Village Name", "gp_name": "Gram Panchayat", "block_name": "Block"})
         
-        display_df = df.rename(columns={
-            "village_name": "Village Name",
-            "gp_name": "Gram Panchayat",
-            "block_name": "Block"
-        })
-        
-        gb = GridOptionsBuilder.from_dataframe(display_df)
-        gb.configure_selection('single', use_checkbox=True)
-        grid_options = gb.build()
-
-        st.write("### Select a Village:")
-        grid_response = AgGrid(
-            display_df,
-            gridOptions=grid_options,
-            update_mode=GridUpdateMode.SELECTION_CHANGED,
-            data_return_mode=DataReturnMode.FILTERED_AND_SORTED,
-            fit_columns_on_grid_load=True,
-            theme='streamlit',
-            key="village_grid"
-        )
+        gb = GridOptionsBuilder.from_dataframe(df)
+        gb.configure_selection('multiple', use_checkbox=True)
+        grid_response = AgGrid(df, gridOptions=gb.build(), update_mode=GridUpdateMode.SELECTION_CHANGED, theme='streamlit', height=200)
 
         selected = grid_response.get('selected_rows')
-        
         if selected is not None and len(selected) > 0:
-            if st.button("✅ Confirm Selection & Generate Report"):
-                if isinstance(selected, pd.DataFrame):
-                    st.session_state['village_selected_name'] = selected.iloc[0]['Village Name']
-                else:
-                    st.session_state['village_selected_name'] = selected[0]['Village Name']
+            st.divider()
+            if len(selected) > 2:
+                st.error("⚠️ Please select a maximum of 2 villages to proceed." if lang == 'en' else "⚠️ ਕਿਰਪਾ ਕਰਕੇ ਅੱਗੇ ਵਧਣ ਲਈ ਵੱਧ ਤੋਂ ਵੱਧ 2 ਪਿੰਡ ਚੁਣੋ।")
+            else:
+                report_lang = st.radio("📄 Select Report Language:", options=["English", "Punjabi (ਪੰਜਾਬੀ)"], index=1 if lang == 'pa' else 0, horizontal=True)
+                btn_text = "✅ Generate Report" if len(selected) == 1 else "📊 Compare Villages"
                 
-                st.session_state['village_confirmed'] = True
-                st.rerun()
+                if st.button(btn_text, type="primary"):
+                    st.session_state['v_lang'] = 'pa' if report_lang == "Punjabi (ਪੰਜਾਬੀ)" else 'en'
+                    st.session_state['v_selected_names'] = selected['Village Name'].tolist() if isinstance(selected, pd.DataFrame) else [row['Village Name'] for row in selected]
+                    st.session_state['v_confirmed'] = True
+                    if st.session_state['v_lang'] == 'pa' and not settings.PUNJABI_FONT_LOADED: utils.register_fonts()
+                    st.rerun()
 
-    # --- Render Final Report ---
-    if st.session_state['village_confirmed'] and st.session_state['village_selected_name']:
-        village_data = database.get_village_by_name(st.session_state['village_selected_name'])
+    # --- Render Report ---
+    if st.session_state['v_confirmed'] and st.session_state.get('v_selected_names'):
+        with st.spinner("Fetching data..."):
+            villages_data = [database.get_village_by_name(v) for v in st.session_state['v_selected_names'] if database.get_village_by_name(v)]
         
-        if village_data:
-            utils.render_village_view(village_data, lang)
-            
-            st.divider() 
-            insight_header = "🧠 AI-ਦੁਆਰਾ ਤਿਆਰ ਕੀਤੀਆਂ ਗਈਆਂ ਜਾਣਕਾਰੀਆਂ ਅਤੇ ਸਿਫ਼ਾਰਸ਼ਾਂ" if lang == 'pa' else "🧠 AI-Generated Insights & Recommendations"
-            st.subheader(insight_header)
-            
-            cache_key = f"insights_{st.session_state['village_selected_name']}_{lang}"
-            
-            if cache_key not in st.session_state:
-                with st.spinner("Analyzing village data for insights..."):
-                    st.session_state[cache_key] = llm.analyze_village_data(
-                        village_data=village_data, 
-                        lang=lang
-                    )
-            
-            st.markdown(st.session_state[cache_key])
+        if villages_data:
+            utils.render_village_view(villages_data, st.session_state['v_lang'])
             
             st.divider()
+            insight_header = "🧠 AI-Generated Insights" if len(villages_data) == 1 else "🧠 Comparative AI Insights"
+            if st.session_state['v_lang'] == 'pa': insight_header = utils.get_translation(insight_header)
+            st.subheader(insight_header)
             
-            pdf_bytes = utils.generate_village_pdf(
-                village_data, 
-                lang, 
-                st.session_state[cache_key]
-            )
+            cache_key = f"v_insights_{'_'.join(st.session_state['v_selected_names'])}_{st.session_state['v_lang']}"
+            if cache_key not in st.session_state:
+                with st.spinner("Analyzing data..."):
+                    st.session_state[cache_key] = llm.analyze_village_data(villages_data, st.session_state['v_lang'])
             
-            btn_label = "📥 ਪੂਰੀ ਪੀਡੀਐਫ ਰਿਪੋਰਟ ਡਾਊਨਲੋਡ ਕਰੋ" if lang == 'pa' else "📥 Download Complete PDF Report"
-            st.download_button(
-                label=btn_label, 
-                data=pdf_bytes, 
-                file_name=f"{village_data['village_name']}_report.pdf", 
-                mime="application/pdf"
-            )
+            st.markdown(st.session_state[cache_key])
+            st.divider()
+            
+            # 2. PDF Generation perfectly mapped to utils.py
+            pdf_bytes = utils.generate_village_pdf(villages_data, st.session_state['v_lang'], st.session_state[cache_key])
+            f_name = f"{villages_data[0]['village_name']}_report.pdf" if len(villages_data) == 1 else "Comparison_Report.pdf"
+            btn_label = "📥 Download PDF" if st.session_state['v_lang'] == 'en' else "📥 ਪੀਡੀਐਫ ਡਾਊਨਲੋਡ ਕਰੋ"
+            st.download_button(label=btn_label, data=pdf_bytes, file_name=f_name, mime="application/pdf", type="primary")
