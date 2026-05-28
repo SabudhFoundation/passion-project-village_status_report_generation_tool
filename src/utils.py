@@ -764,12 +764,13 @@ def render_village_view(villages_data: list, detected_lang: str):
     # 1. Header Rendering
     if not is_comp:
         v = villages_data[0]
+        year = v.get('assessment_year', 'N/A')
         if detected_lang == 'pa':
             st.markdown(f"### 🏡 ਪਿੰਡ: {get_translation(v.get('village_name', ''))}")
-            st.markdown(f"**ਗ੍ਰਾਮ ਪੰਚਾਇਤ:** {get_translation(v.get('gp_name', ''))} &nbsp;|&nbsp; **ਬਲਾਕ:** {get_translation(v.get('block_name', ''))}")
+            st.markdown(f"**ਗ੍ਰਾਮ ਪੰਚਾਇਤ:** {get_translation(v.get('gp_name', ''))} &nbsp;|&nbsp; **ਬਲਾਕ:** {get_translation(v.get('block_name', ''))} &nbsp;|&nbsp; **ਸਾਲ:** {year}")
         else:
             st.markdown(f"### 🏡 Village: {v.get('village_name', '')}")
-            st.markdown(f"**Gram Panchayat:** {v.get('gp_name', '')} &nbsp;|&nbsp; **Block:** {v.get('block_name', '')}")
+            st.markdown(f"**Gram Panchayat:** {v.get('gp_name', '')} &nbsp;|&nbsp; **Block:** {v.get('block_name', '')} &nbsp;|&nbsp; **Year:** {year}")
     else:
         v1, v2 = villages_data
         if detected_lang == 'pa':
@@ -795,7 +796,6 @@ def render_village_view(villages_data: list, detected_lang: str):
                         dlbl = get_translation(lbl) if detected_lang == 'pa' else lbl
                         st.markdown(f"**{dlbl}:** {val}")
                         
-                        # THE CRASH FIX: Atomic append guarantees arrays are identical size
                         if val is not None and str(val).lower() not in ['nan', 'none', 'n/a', '']:
                             try:
                                 clean_float = float(val)
@@ -811,14 +811,16 @@ def render_village_view(villages_data: list, detected_lang: str):
                 cols = st.columns(2)
                 for idx, (col, v) in enumerate(zip(cols, villages_data)):
                     with col:
-                        st.markdown(f"#### 🔹 {get_translation(v.get('village_name')) if detected_lang == 'pa' else v.get('village_name')}")
+                        v_name = get_translation(v.get('village_name')) if detected_lang == 'pa' else v.get('village_name')
+                        year = v.get('assessment_year', 'N/A')
+                        st.markdown(f"#### 🔹 {v_name} ({year})")
+                        
                         valid_metrics = []
                         for lbl, path in metrics:
                             val = get_nested(v, path)
                             dlbl = get_translation(lbl) if detected_lang == 'pa' else lbl
                             st.markdown(f"**{dlbl}:** {val}")
                             
-                            # THE CRASH FIX: Atomic append
                             if val is not None and str(val).lower() not in ['nan', 'none', 'n/a', '']:
                                 try:
                                     clean_float = float(val)
@@ -840,33 +842,38 @@ def generate_village_pdf(villages_data: list, detected_lang: str, insights: str)
     elements = []
     
     fp = settings.PUNJABI_REGULAR_FONT_PATH if detected_lang == 'pa' and settings.PUNJABI_FONT_LOADED else None
-    f_reg = 'Gurmukhi' if fp else 'Helvetica'
-    f_bold = 'Gurmukhi-Bold' if fp else 'Helvetica-Bold'
+    
+    # Use base font name for styles to avoid ps2tt errors; use <b> tags for bolding.
+    f_base = 'Gurmukhi' if fp else 'Helvetica'
     
     s = getSampleStyleSheet()
-    t_style = ParagraphStyle('T', parent=s['Heading1'], fontName=f_bold, fontSize=16, spaceAfter=12)
-    h2_style = ParagraphStyle('H2', parent=s['Heading2'], fontName=f_bold, fontSize=14, spaceAfter=8, spaceBefore=12)
-    b_style = ParagraphStyle('B', parent=s['Normal'], fontName=f_reg, fontSize=10, leading=14)
+    t_style = ParagraphStyle('T', parent=s['Heading1'], fontName=f_base, fontSize=16, spaceAfter=12)
+    h2_style = ParagraphStyle('H2', parent=s['Heading2'], fontName=f_base, fontSize=14, spaceAfter=8, spaceBefore=12)
+    b_style = ParagraphStyle('B', parent=s['Normal'], fontName=f_base, fontSize=10, leading=14)
     
     is_comp = len(villages_data) == 2
     
     if not is_comp:
         v = villages_data[0]
+        year = v.get('assessment_year', 'N/A')
+        
         title = f"Village Report: {v.get('village_name', 'Unknown')}"
         if fp: title = get_translation(title)
-        elements.append(Paragraph(title, t_style))
-        info = f"Gram Panchayat: {v.get('gp_name', '')} | Block: {v.get('block_name', '')}"
+        elements.append(Paragraph(f"<b>{title}</b>", t_style))
+        
+        info = f"Gram Panchayat: {v.get('gp_name', '')} | Block: {v.get('block_name', '')} | Year: {year}"
         elements.append(Paragraph(get_translation(info) if fp else info, b_style))
         
         for d_idx, d_name, _, metrics in constants.VILLAGE_DOMAINS:
-            elements.append(Paragraph(f"Domain {d_idx}: {get_translation(d_name) if fp else d_name}", h2_style))
+            d_title = f"Domain {d_idx}: {get_translation(d_name) if fp else d_name}"
+            elements.append(Paragraph(f"<b>{d_title}</b>", h2_style))
+            
             m_names, m_vals = [], []
             for lbl, path in metrics:
                 val = get_nested(v, path)
                 dlbl = get_translation(lbl) if fp else lbl
                 elements.append(Paragraph(f"<b>{dlbl}:</b> {val}", b_style))
                 
-                # --- EXACT FIX: Attempt float conversion FIRST ---
                 try:
                     clean_val = float(val)
                     m_names.append(dlbl)
@@ -897,22 +904,24 @@ def generate_village_pdf(villages_data: list, detected_lang: str, insights: str)
     else:
         v1, v2 = villages_data
         n1, n2 = str(v1.get('village_name', 'V1')), str(v2.get('village_name', 'V2'))
+        y1, y2 = v1.get('assessment_year', 'N/A'), v2.get('assessment_year', 'N/A')
         
         col1_name = f"{n1} (A)" if n1 == n2 else n1
         col2_name = f"{n2} (B)" if n1 == n2 else n2
         
         title = f"Comparison: {n1} vs {n2}"
-        elements.append(Paragraph(get_translation(title) if fp else title, t_style))
+        elements.append(Paragraph(f"<b>{get_translation(title) if fp else title}</b>", t_style))
         
         for d_idx, d_name, _, metrics in constants.VILLAGE_DOMAINS:
-            elements.append(Paragraph(f"Domain {d_idx}: {get_translation(d_name) if fp else d_name}", h2_style))
+            d_title = f"Domain {d_idx}: {get_translation(d_name) if fp else d_name}"
+            elements.append(Paragraph(f"<b>{d_title}</b>", h2_style))
+            
             m_names, v1_vals, v2_vals = [], [], []
             for lbl, path in metrics:
                 val1, val2 = get_nested(v1, path), get_nested(v2, path)
                 dlbl = get_translation(lbl) if fp else lbl
                 elements.append(Paragraph(f"<b>{dlbl}:</b> {n1} ({val1}) | {n2} ({val2})", b_style))
                 
-                # --- EXACT FIX: Attempt float conversion FIRST ---
                 try:
                     clean_v1 = float(val1)
                     clean_v2 = float(val2)
@@ -923,10 +932,10 @@ def generate_village_pdf(villages_data: list, detected_lang: str, insights: str)
                     pass
                     
             if m_names:
-                df = pd.DataFrame({"M": m_names, col1_name: v1_vals, col2_name: v2_vals})
+                df = pd.DataFrame({"M": m_names, f"{col1_name} ({y1})": v1_vals, f"{col2_name} ({y2})": v2_vals})
                 fig, ax = plt.subplots(figsize=(6.5, max(2.5, len(m_names) * 0.6)))
                 
-                df.plot(x="M", y=[col1_name, col2_name], kind="barh", ax=ax, color=['#4682B4', '#20B2AA'])
+                df.plot(x="M", y=[f"{col1_name} ({y1})", f"{col2_name} ({y2})"], kind="barh", ax=ax, color=['#4682B4', '#20B2AA'])
                 
                 prop = fm.FontProperties(fname=fp) if fp else None
                 if prop: 
@@ -942,9 +951,11 @@ def generate_village_pdf(villages_data: list, detected_lang: str, insights: str)
                 elements.append(RLImage(buf, width=6.5*inch, height=max(2.5, len(m_names)*0.6)*inch))
                 
     elements.append(Spacer(1, 20))
-    elements.append(Paragraph(get_translation("AI Insights") if fp else "AI Insights", h2_style))
+    ai_title = get_translation("AI Insights") if fp else "AI Insights"
+    elements.append(Paragraph(f"<b>{ai_title}</b>", h2_style))
     for line in (insights or "").split('\n'):
-        if line.strip(): elements.append(Paragraph(line.replace('**', '').replace('#', '').strip(), b_style))
+        if line.strip(): 
+            elements.append(Paragraph(line.replace('**', '').replace('#', '').strip(), b_style))
             
     doc.build(elements)
     buffer.seek(0)
