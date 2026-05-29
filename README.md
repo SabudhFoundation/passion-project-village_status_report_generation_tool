@@ -72,5 +72,55 @@ The repository is structured to cleanly separate the frontend presentation layer
     └── visualization/      <- Scripts for exploratory data graphics generation.
         └── visualize.py
 
+🛠️ Tech Stack
 
+Frontend: Streamlit, streamlit-aggrid
+
+Backend / Logic: Python 3.x, Pandas
+
+AI / NLP: Google Gemini (LLM Analysis), deep_translator
+
+Database: MongoDB
+
+PDF Generation: fpdf / reportlab
+
+Configuration: pydantic, pydantic-settings
+
+🚀 Getting Started
+Follow these steps to set up the project locally.
+
+1. Clone the repository
+git clone https://github.com/yourusername/Integrated-Data-Generation-Portal.git
+cd Integrated-Data-Generation-Portal
+
+2. Install Dependencies
+Ensure you have Python 3.9+ installed, then run:
+pip install -r requirements.txt
+
+3. Setup Environment Variables
+Create a .env file in the root directory (alongside the master app.py). It must include the variables defined in your Pydantic settings. Example:
+<img width="636" height="407" alt="image" src="https://github.com/user-attachments/assets/e5cb363e-aa22-4184-9f4b-93a5bf89b191" />
+
+
+5. Font Configuration (Crucial for Punjabi PDFs)
+Ensure the fonts/ directory exists in the root folder and contains the required .ttf files specified in your .env. Without these, Punjabi characters will render as missing blocks in PDF exports.
+
+6. Run the Application
+Always run the application from the root directory to ensure the Python path correctly resolves the sub-modules.
+streamlit run app.py
+
+💡 Usage Guide
+Home Portal: Upon launching, you will be greeted by the master routing page. Select either the School Tool or Village Tool.
+
+Chat Interface: Type the name of the entity you are looking for (in English or Punjabi).
+
+Selection & Comparison: If multiple results are found, use the interactive grid to select 1 or 2 rows.
+
+Selecting one generates a standard status report.
+
+Selecting two unlocks the Comparative AI Insights dashboard.
+
+Download: Click the primary download button at the bottom of the report to export the compiled data and AI insights as a PDF.
+
+Return: Click the "🔙 Back to Home Portal" button in the sidebar to securely wipe the session state and return to the main menu.
 
