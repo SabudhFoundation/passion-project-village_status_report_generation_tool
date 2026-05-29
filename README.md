@@ -72,6 +72,7 @@ The repository is structured to cleanly separate the frontend presentation layer
     └── visualization/      <- Scripts for exploratory data graphics generation.
         └── visualize.py
 
+```
 🛠️ Tech Stack
 
 Frontend: Streamlit, streamlit-aggrid
