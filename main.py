@@ -2,8 +2,8 @@ import streamlit as st
 from src.config import settings
 
 # Import your screens
-from screens.school_report import school_report_app
-from screens.village_report import village_report_app
+from src.screens.school_report import school_report_app
+from src.screens.village_report import village_report_app
 
 def main():
     st.set_page_config(page_title=settings.PAGE_TITLE, layout=settings.PAGE_LAYOUT)
@@ -12,7 +12,7 @@ def main():
         st.session_state['app_mode'] = 'Home'
 
     if st.session_state['app_mode'] == 'Home':
-        st.title("Young Leaders Development Tool")
+        st.title(settings.PAGE_TITLE)
         st.markdown("Please select the report generation module you want to access:")
         
         col1, col2 = st.columns(2)
@@ -26,14 +26,14 @@ def main():
                 st.rerun()
 
     elif st.session_state['app_mode'] == 'School':
-        if st.button("⬅️ Back to Home Menu"):
+        if st.button("⬅️ Back to Home"):
             st.session_state['app_mode'] = 'Home'
             st.rerun()
         st.markdown("---")
         school_report_app()
 
     elif st.session_state['app_mode'] == 'Village':
-        if st.button("⬅️ Back to Home Menu"):
+        if st.button("⬅️ Back to Home"):
             st.session_state['app_mode'] = 'Home'
             st.rerun()
         st.markdown("---")
