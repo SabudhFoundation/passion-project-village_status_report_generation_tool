@@ -1,127 +1,146 @@
 [![Open in Visual Studio Code](https://classroom.github.com/assets/open-in-vscode-2e0aaae1b6195c2367325f4f02e2d04e9abb55f0b24a779b69b11b9e10269abc.svg)](https://classroom.github.com/online_ide?assignment_repo_id=23178784&assignment_repo_type=AssignmentRepo)
-Project Instructions
-==============================
 
-This repo contains the instructions for a machine learning project. 
+# Village & School Intelligence Portal
 
-**Do Not Forget to mention the Python Version being used and complete the requirements.txt fil**
-
-# Village & School Status Report Generation Tool
-
-A unified, LLM-powered Streamlit dashboard designed to generate interactive, bilingual status reports for both schools and villages. It leverages automated insights, natural language understanding, and smart data preprocessing, supporting both English and Punjabi (ਪੰਜਾਬੀ).
+A unified, LLM-powered Streamlit dashboard for generating interactive, bilingual status reports for schools and villages across Punjab. Leverages automated insights, natural language understanding, and smart data preprocessing — supporting both English and Punjabi (ਪੰਜਾਬੀ).
 
 ---
 
-## ✨ Key Features
+## Key Features
 
-* **Unified Master Portal:** An interactive Streamlit interface driven by a master orchestrator (`main.py`) that handles reporting workflows seamlessly.
-* **Bilingual Support (English & Punjabi):** Features dynamic UI translation, automated data processing, and native Gurmukhi font rendering for generated assets.
-* **Conversational AI & Insights:** Uses Large Language Models (LLMs) via structured prompts for natural language queries and automated comparative insights.
-* **Smart Fuzzy Matching:** If a database query fails due to a typo, the system utilizes `difflib` to suggest the closest matching village or school names.
-* **Robust Backend Architecture:** Utilizes structured configuration states, dedicated utility modules, and database connection wrappers.
+- **Unified Master Portal:** Interactive Streamlit interface (`main.py`) that routes between School and Village reporting workflows.
+- **Bilingual Support (English & Punjabi):** Dynamic UI translation, automated data processing, and native Gurmukhi font rendering for PDF exports.
+- **Conversational AI & Insights:** LLM integration via structured prompts for natural language queries and automated comparative insights.
+- **Smart Fuzzy Matching:** Uses `difflib` to suggest closest matching village or school names when a query fails.
+- **Government Scheme Data:** Scrapers for Jal Jeevan Mission (JJM), MNREGA, and Swachh Bharat Mission (SBM) data pipelines.
 
 ---
 
-## 📂 Project Organization
+## Tech Stack
 
-The repository is structured to cleanly separate the frontend presentation layer, source business logic, datasets, and generated reports:
+| Layer | Tools |
+|---|---|
+| Frontend | Streamlit, streamlit-aggrid |
+| Backend | Python 3.9+, Pandas |
+| AI / NLP | Google Gemini (LLM), deep-translator |
+| Database | MongoDB |
+| PDF Generation | fpdf / reportlab |
+| Configuration | pydantic, pydantic-settings |
 
-```text
-├── .gitignore
-├── LICENSE
-├── README.md               <- Top-level documentation for setup and testing.
-├── main.py                 <- Master script to run the Streamlit application.
-├── requirements.txt        <- Python dependencies required to run the environment.
-├── school_data.xlsx        <- Local reference Excel dataset for metrics evaluation.
-├── meetings.md             <- Logs and action items from mentor alignment meetings.
-├── weekly_report.md        <- Internal weekly status and progress tracker.
-│
-├── notebooks/              <- Jupyter notebooks for experimental data analysis.
-├── reports/                <- Target output directory for generated assets.
-│   ├── figures/            <- Generated graphics and visualization exports.
-│   ├── final_project_report/ <- Final definitive report PDFs and supporting documents.
-│   └── presentation/        <- Supporting presentation files.
-│
-├── screens/                <- Presentation layer UI layouts for Streamlit.
-│   ├── school_report.py    <- UI screen and controls for School data reporting.
-│   └── village_report.py   <- UI screen and controls for Village data reporting.
-│
-└── src/                    <- Core source package containing backend business logic.
-    ├── __init__.py         <- Marks src as a Python package.
-    ├── config.py           <- Application configuration and dynamic settings.
-    ├── constants.py        <- Global environment and application constants.
-    ├── database.py         <- Database configuration and client connectivity handlers.
-    ├── llm.py              <- Large Language Model integration layer.
-    ├── prompts.py          <- Context-managed system prompts for LLM querying.
-    ├── utils.py            <- Universal helper functions and common utilities.
-    │
-    ├── data/               <- Local data management.
-    │   ├── processed/      <- Cleaned and transformed canonical datasets.
-    │   └── raw/            <- Original immutable source data dumps.
-    │
-    ├── models/             <- Scripts for predictive analysis and modeling.
-    │   ├── train_model.py
-    │   └── predict_model.py
-    │
-    ├── preprocessing_data/ <- Specialized scraping and data pipeline scripts.
-    │
-    ├── punjabi_font/       <- Core regional assets for localized PDF generation.
-    │   ├── NotoSansGurmukhi-Bold.ttf
-    │   └── NotoSansGurmukhi-Regular.ttf
-    │
-    └── visualization/      <- Scripts for exploratory data graphics generation.
-        └── visualize.py
+---
+
+## 📂 Project Structure
 
 ```
-🛠️ Tech Stack
+├── main.py                     <- Streamlit app entry point (run this)
+├── requirements.txt            <- Python dependencies
+├── .env.sample                 <- Template for environment variables (copy to .env)
+├── meetings.md                 <- Mentor alignment meeting logs
+├── weekly_report.md            <- Internal weekly progress tracker
+│
+├── screens/                    <- Streamlit UI screen modules
+│   ├── school_report.py        <- School data reporting UI and controls
+│   └── village_report.py       <- Village data reporting UI and controls
+│
+├── src/                        <- Core backend package
+│   ├── __init__.py
+│   ├── config.py               <- App configuration and Pydantic settings
+│   ├── constants.py            <- Global constants and environment variables
+│   ├── database.py             <- MongoDB client and connection handlers
+│   ├── llm.py                  <- Google Gemini LLM integration layer
+│   ├── prompts.py              <- System prompts for LLM querying
+│   ├── utils.py                <- Shared helper functions
+│   │
+│   ├── data/
+│   │   ├── processed/          <- Cleaned and transformed datasets
+│   │   └── raw/                <- Original immutable source data
+│   │
+│   └── punjabi_font/           <- Gurmukhi fonts for PDF generation
+│       ├── NotoSansGurmukhi-Bold.ttf
+│       └── NotoSansGurmukhi-Regular.ttf
+│
+├── notebooks/                  <- Data scraping and merging scripts by scheme
+│   ├── Jal Jeevan Mission/
+│   │   ├── scrape_data.py
+│   │   ├── merge_csv.py
+│   │   └── LastGoodCode.py
+│   ├── MNREGA/
+│   │   ├── scrape_data.py
+│   │   └── merge_csv.py
+│   └── Swacch Bharat Mission/
+│       ├── scraped_data.py
+│       └── merge_csv.py
+│
+└── reports/                    <- Target output directory for generated assets.
+    ├── figures/                <- Generated graphics and visualization exports.
+    ├── final_project_report/   <- Final definitive report PDFs and supporting documents.
+    └── presentation/           <- Supporting presentation files.
+```
 
-Frontend: Streamlit, streamlit-aggrid
+---
 
-Backend / Logic: Python 3.x, Pandas
+## Getting Started
 
-AI / NLP: Google Gemini (LLM Analysis), deep_translator
+**Python version:** 3.9+
 
-Database: MongoDB
+### 1. Clone the Repository
 
-PDF Generation: fpdf / reportlab
+```bash
+git clone https://github.com/SabudhFoundation/passion-project-village_status_report_generation_tool.git
+cd passion-project-village_status_report_generation_tool
+```
 
-Configuration: pydantic, pydantic-settings
+### 2. Install Dependencies
 
-🚀 Getting Started
-Follow these steps to set up the project locally.
-
-1. Clone the repository
-git clone https://github.com/yourusername/Integrated-Data-Generation-Portal.git
-cd Integrated-Data-Generation-Portal
-
-2. Install Dependencies
-Ensure you have Python 3.9+ installed, then run:
+```bash
 pip install -r requirements.txt
+```
 
-3. Setup Environment Variables
-Create a .env file in the root directory (alongside the master app.py). It must include the variables defined in your Pydantic settings. Example:
-<img width="636" height="407" alt="image" src="https://github.com/user-attachments/assets/e5cb363e-aa22-4184-9f4b-93a5bf89b191" />
+### 3. Set Up Environment Variables
 
+Copy the provided sample file and fill in your values:
 
-5. Font Configuration (Crucial for Punjabi PDFs)
-Ensure the fonts/ directory exists in the root folder and contains the required .ttf files specified in your .env. Without these, Punjabi characters will render as missing blocks in PDF exports.
+```bash
+cp .env.sample .env
+```
 
-6. Run the Application
-Always run the application from the root directory to ensure the Python path correctly resolves the sub-modules.
-streamlit run app.py
+All required variables and their descriptions are documented in `.env.sample`. At minimum, update:
 
-💡 Usage Guide
-Home Portal: Upon launching, you will be greeted by the master routing page. Select either the School Tool or Village Tool.
+```env
+API_KEY=your_google_gemini_api_key_here
+MONGO_URI=mongodb+srv://<username>:<password>@<cluster>.mongodb.net/
+```
 
-Chat Interface: Type the name of the entity you are looking for (in English or Punjabi).
+### 4. Run the Application
 
-Selection & Comparison: If multiple results are found, use the interactive grid to select 1 or 2 rows.
+Always run from the root directory so Python resolves sub-modules correctly:
 
-Selecting one generates a standard status report.
+```bash
+streamlit run main.py
+```
 
-Selecting two unlocks the Comparative AI Insights dashboard.
+---
 
-Download: Click the primary download button at the bottom of the report to export the compiled data and AI insights as a PDF.
+## Usage Guide
 
-Return: Click the "🔙 Back to Home Portal" button in the sidebar to securely wipe the session state and return to the main menu.
+1. **Home Portal:** Select either **School Tool** or **Village Tool** from the landing page.
+2. **Search:** Type a village or school name in English or Punjabi. Fuzzy matching will suggest close results if the exact name is not found.
+3. **Select & Compare:**
+   - Select **1 row** → generates a standard status report.
+   - Select **2 rows** → unlocks the Comparative AI Insights dashboard.
+4. **Download:** Export the report and AI insights as a PDF using the download button.
+5. **Return:** Use the "Back to Home" button in the sidebar to reset session state and return to the main menu.
 
+---
+
+## Data Pipelines
+
+Government scheme data is collected via scripts in `notebooks/`:
+
+| Scheme | Script Location |
+|---|---|
+| Jal Jeevan Mission (JJM) | `notebooks/Jal Jeevan Mission/` |
+| MNREGA | `notebooks/MNREGA/` |
+| Swachh Bharat Mission (SBM) | `notebooks/Swacch Bharat Mission/` |
+
+Each scheme folder contains a `scrape_data.py` to collect raw data and a `merge_csv.py` to consolidate it.
