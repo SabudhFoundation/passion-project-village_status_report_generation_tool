@@ -13,7 +13,7 @@ def load_data() -> pd.DataFrame:
 
 def init_school_session_states(df):
     defaults = {
-        's_messages': [],
+        's_messages': [{"role": "assistant", "content": prompts.SCHOOL_WELCOME_PROMPT}],
         's_candidates_df': pd.DataFrame(columns=df.columns),
         's_selected_df': pd.DataFrame(columns=df.columns),
         's_confirmed': False,

@@ -79,6 +79,8 @@ def make_classify_prompt(user_input: str) -> str:
 # SCHOOL REPORT PROMPTS
 # ==========================================
 
+SCHOOL_WELCOME_PROMPT = "Welcome to the School Status Report Generator. How can I assist you today?"
+
 def make_school_nofound_message(user_input: str) -> str:
     return f"Sorry, I couldn't find a school matching '{user_input}'. Please check the spelling or UDISE code."
 

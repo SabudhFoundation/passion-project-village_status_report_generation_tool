@@ -806,7 +806,19 @@ def render_village_view(villages_data: list, detected_lang: str):
                 with c2:
                     if valid_metrics:
                         df = pd.DataFrame(valid_metrics).sort_values(by="value")
-                        st.plotly_chart(px.bar(df, x="value", y="label", orientation='h', text="value", color="value", color_continuous_scale="Blues").update_layout(xaxis_title="", yaxis_title="", coloraxis_showscale=False), use_container_width=True)
+                        fig = px.bar(df, x="value", y="label", orientation='h', text="value", color="value", color_continuous_scale="Blues")
+                        
+                        fig.update_traces(textposition='outside', marker_line_color='black', marker_line_width=1)
+                        fig.update_layout(
+                            xaxis_title="Score" if detected_lang != 'pa' else "ਸਕੋਰ",
+                            yaxis_title="Metric" if detected_lang != 'pa' else "ਮੈਟ੍ਰਿਕ",
+                            coloraxis_showscale=False,
+                            plot_bgcolor='white',
+                            xaxis=dict(showgrid=True, gridcolor='lightgray', showline=True, linewidth=1, linecolor='black'),
+                            yaxis=dict(showgrid=False, showline=True, linewidth=1, linecolor='black'),
+                            margin=dict(l=0, r=30, t=10, b=0)
+                        )
+                        st.plotly_chart(fig, use_container_width=True)
             else:
                 cols = st.columns(2)
                 for idx, (col, v) in enumerate(zip(cols, villages_data)):
@@ -830,8 +842,20 @@ def render_village_view(villages_data: list, detected_lang: str):
                                 
                         if valid_metrics:
                             df = pd.DataFrame(valid_metrics).sort_values(by="value")
-                            st.plotly_chart(px.bar(df, x="value", y="label", orientation='h', text="value", color="value", color_continuous_scale="Blues" if idx == 0 else "Teal").update_layout(xaxis_title="", yaxis_title="", coloraxis_showscale=False), use_container_width=True)
-
+                            fig = px.bar(df, x="value", y="label", orientation='h', text="value", color="value", color_continuous_scale="Blues" if idx == 0 else "Teal")
+                            
+                            fig.update_traces(textposition='outside', marker_line_color='black', marker_line_width=1)
+                            fig.update_layout(
+                                xaxis_title="Score" if detected_lang != 'pa' else "ਸਕੋਰ",
+                                yaxis_title="Metric" if detected_lang != 'pa' else "ਮੈਟ੍ਰਿਕ",
+                                coloraxis_showscale=False,
+                                plot_bgcolor='white',
+                                xaxis=dict(showgrid=True, gridcolor='lightgray', showline=True, linewidth=1, linecolor='black'),
+                                yaxis=dict(showgrid=False, showline=True, linewidth=1, linecolor='black'),
+                                margin=dict(l=0, r=30, t=10, b=0)
+                            )
+                            st.plotly_chart(fig, use_container_width=True)
+                            
 # ==========================================
 # 8. VILLAGE PDF GENERATOR
 # ==========================================
