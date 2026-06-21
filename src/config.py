@@ -23,7 +23,7 @@ class Settings(BaseSettings):
     MODEL_TEMP: float
     ENABLE_REMARK_REPHRASE: bool
     MAX_REPHRASE_RETRIES: int
-
+    TAVILY_API_KEY: str = "" 
     # --- Village Report Settings ---
 
     MONGO_URI: str 

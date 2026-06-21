@@ -55,6 +55,7 @@ def detect_lang(text: str) -> str:
     except LangDetectException:
         return 'en'
 
+@st.cache_data(show_spinner=False)
 def get_translation(text: str, target_lang='pa') -> str:
     if not text or text == "N/A": 
         return text
@@ -87,20 +88,51 @@ def get_nested(data: dict, path: str):
     return val
 
 def register_fonts():
+    """The Ultimate Font Locator with UI Debugging."""
+    import os
+    import streamlit as st
+    
     try:
-        if os.path.exists(settings.PUNJABI_REGULAR_FONT_PATH) and os.path.exists(settings.PUNJABI_BOLD_FONT_PATH):
-            pdfmetrics.registerFont(TTFont('Gurmukhi', Path(settings.PUNJABI_REGULAR_FONT_PATH)))
-            pdfmetrics.registerFont(TTFont('Gurmukhi-Bold', Path(settings.PUNJABI_BOLD_FONT_PATH)))
-            pdfmetrics.registerFont(TTFont('PunjabiFont', Path(settings.PUNJABI_REGULAR_FONT_PATH)))
-            pdfmetrics.registerFont(TTFont('PunjabiFont-Bold', Path(settings.PUNJABI_BOLD_FONT_PATH)))
+        # 1. Determine absolute root directory safely
+        current_dir = os.path.dirname(os.path.abspath(__file__)) # This is src/
+        root_dir = os.path.dirname(current_dir) # This is the main project folder
+        
+        # 2. Strip any accidental quotes from the .env variables
+        env_reg = str(settings.PUNJABI_REGULAR_FONT_PATH).strip("'\" ")
+        env_bold = str(settings.PUNJABI_BOLD_FONT_PATH).strip("'\" ")
+        
+        # 3. Construct the absolute paths
+        reg_path = env_reg if os.path.isabs(env_reg) else os.path.join(root_dir, env_reg)
+        bold_path = env_bold if os.path.isabs(env_bold) else os.path.join(root_dir, env_bold)
+        
+        # Normalize paths for Windows (changes / to \)
+        reg_path = os.path.normpath(reg_path)
+        bold_path = os.path.normpath(bold_path)
+
+        if os.path.exists(reg_path) and os.path.exists(bold_path):
+            # Register with ReportLab
+            pdfmetrics.registerFont(TTFont('Gurmukhi', reg_path))
+            pdfmetrics.registerFont(TTFont('Gurmukhi-Bold', bold_path))
+            pdfmetrics.registerFont(TTFont('PunjabiFont', reg_path))
+            pdfmetrics.registerFont(TTFont('PunjabiFont-Bold', bold_path))
             
             pdfmetrics.registerFontFamily('Gurmukhi', normal='Gurmukhi', bold='Gurmukhi-Bold', italic='Gurmukhi', boldItalic='Gurmukhi-Bold')
+            
+            # Store the successful absolute paths back in settings
+            settings.PUNJABI_REGULAR_FONT_PATH = reg_path
+            settings.PUNJABI_BOLD_FONT_PATH = bold_path
             settings.PUNJABI_FONT_LOADED = True
             return True
+        else:
+            # FIRE ALARM: Print a massive red error on the UI telling the user exactly what is wrong
+            st.error(f"🚨 **FONT MISSING!** The PDF generator cannot find your Punjabi fonts.\n\nIt is looking exactly here:\n`{reg_path}`\n\nPlease check your `.env` file and make sure the file exists at that exact location!")
+            settings.PUNJABI_FONT_LOADED = False
+            return False
+            
     except Exception as e:
-        print(f"Font Registration Failed: {e}")
-    settings.PUNJABI_FONT_LOADED = False
-    return False
+        st.error(f"🚨 Font Registration Crash: {e}")
+        settings.PUNJABI_FONT_LOADED = False
+        return False
 
 # ==========================================
 # 2. DATA LOADING & MATCHING (SCHOOLS)
@@ -861,6 +893,10 @@ def render_village_view(villages_data: list, detected_lang: str):
 # ==========================================
 
 def generate_village_pdf(villages_data: list, detected_lang: str, insights: str) -> bytes:
+    # --- FIX 1: GUARANTEE FONT REGISTRATION AT PDF CREATION TIME ---
+    if detected_lang == 'pa' and not settings.PUNJABI_FONT_LOADED:
+        register_fonts()
+        
     buffer = io.BytesIO()
     doc = SimpleDocTemplate(buffer, pagesize=A4, rightMargin=30, leftMargin=30, topMargin=30, bottomMargin=30)
     elements = []
@@ -869,19 +905,20 @@ def generate_village_pdf(villages_data: list, detected_lang: str, insights: str)
     f_reg = 'Gurmukhi' if fp else 'Helvetica'
     f_bold = 'Gurmukhi-Bold' if fp else 'Helvetica-Bold'
     
-    # --- NEW: Text Reshaper for Dumb PDF Renderers ---
+    # --- Translates incoming text and reshapes Gurmukhi vowels ---
     def safe_punjabi_pdf_text(text: str) -> str:
-        """
-        Translates text and swaps the Gurmukhi Sihari (\u0A3F) with the preceding consonant 
-        so ReportLab and Matplotlib draw it on the left correctly.
-        """
         if not text: return ""
         res = get_translation(text) if fp else str(text)
         if fp:
             import re
-            # Matches Gurmukhi consonants & foot-consonants, followed by a Sihari, and swaps them.
             res = re.sub(r'([\u0A15-\u0A39\u0A59-\u0A5E](?:\u0A4D[\u0A15-\u0A39\u0A59-\u0A5E])?)([\u0A3F])', r'\2\1', res)
         return res
+
+    # --- Reshaper specifically for hardcoded static Punjabi labels ---
+    def reshape_only(text: str) -> str:
+        if not fp: return text
+        import re
+        return re.sub(r'([\u0A15-\u0A39\u0A59-\u0A5E](?:\u0A4D[\u0A15-\u0A39\u0A59-\u0A5E])?)([\u0A3F])', r'\2\1', text)
 
     s = getSampleStyleSheet()
     t_style = ParagraphStyle('T', parent=s['Heading1'], fontName=f_bold, fontSize=16, spaceAfter=12)
@@ -892,18 +929,29 @@ def generate_village_pdf(villages_data: list, detected_lang: str, insights: str)
     
     if not is_comp:
         v = villages_data[0]
-        title = safe_punjabi_pdf_text(f"Village Report: {v.get('village_name', 'Unknown')}")
+        v_name = safe_punjabi_pdf_text(str(v.get('village_name', 'Unknown')))
+        gp = safe_punjabi_pdf_text(str(v.get('gp_name', '')))
+        block = safe_punjabi_pdf_text(str(v.get('block_name', '')))
+        
+        # FIX 2: Prevent massive concatenated strings from crashing the translation API
+        title = f"{reshape_only('ਪਿੰਡ ਦੀ ਰਿਪੋਰਟ')}: {v_name}" if fp else f"Village Report: {v_name}"
         elements.append(Paragraph(title, t_style))
-        info = safe_punjabi_pdf_text(f"Gram Panchayat: {v.get('gp_name', '')} | Block: {v.get('block_name', '')}")
+        
+        info = f"{reshape_only('ਗ੍ਰਾਮ ਪੰਚਾਇਤ')}: {gp} | {reshape_only('ਬਲਾਕ')}: {block}" if fp else f"Gram Panchayat: {gp} | Block: {block}"
         elements.append(Paragraph(info, b_style))
         
         for d_idx, d_name, _, metrics in constants.VILLAGE_DOMAINS:
-            elements.append(Paragraph(safe_punjabi_pdf_text(f"Domain {d_idx}: {d_name}"), h2_style))
-            m_names, m_vals = [], []
+            d_name_trans = safe_punjabi_pdf_text(d_name)
+            dom_title = f"{reshape_only('ਡੋਮੇਨ')} {d_idx}: {d_name_trans}" if fp else f"Domain {d_idx}: {d_name_trans}"
+            elements.append(Paragraph(dom_title, h2_style))
+            
+            m_names, v1_vals, v2_vals = [], [], []
             for lbl, path in metrics:
                 val = get_nested(v, path)
                 dlbl = safe_punjabi_pdf_text(lbl)
-                elements.append(Paragraph(f"<b>{dlbl}:</b> {val}", b_style))
+                
+                disp_val = safe_punjabi_pdf_text(str(val)) if fp and isinstance(val, str) else str(val)
+                elements.append(Paragraph(f"<b>{dlbl}:</b> {disp_val}", b_style))
                 
                 try:
                     clean_val = float(val)
@@ -940,16 +988,23 @@ def generate_village_pdf(villages_data: list, detected_lang: str, insights: str)
         col1_name = f"{n1} (A)" if n1 == n2 else n1
         col2_name = f"{n2} (B)" if n1 == n2 else n2
         
-        title = safe_punjabi_pdf_text(f"Comparison: {v1.get('village_name', 'V1')} vs {v2.get('village_name', 'V2')}")
+        title = f"{reshape_only('ਤੁਲਨਾ')}: {n1} vs {n2}" if fp else f"Comparison: {n1} vs {n2}"
         elements.append(Paragraph(title, t_style))
         
         for d_idx, d_name, _, metrics in constants.VILLAGE_DOMAINS:
-            elements.append(Paragraph(safe_punjabi_pdf_text(f"Domain {d_idx}: {d_name}"), h2_style))
+            d_name_trans = safe_punjabi_pdf_text(d_name)
+            dom_title = f"{reshape_only('ਡੋਮੇਨ')} {d_idx}: {d_name_trans}" if fp else f"Domain {d_idx}: {d_name_trans}"
+            elements.append(Paragraph(dom_title, h2_style))
+            
             m_names, v1_vals, v2_vals = [], [], []
             for lbl, path in metrics:
                 val1, val2 = get_nested(v1, path), get_nested(v2, path)
                 dlbl = safe_punjabi_pdf_text(lbl)
-                elements.append(Paragraph(f"<b>{dlbl}:</b> {n1} ({val1}) | {n2} ({val2})", b_style))
+                
+                d_val1 = safe_punjabi_pdf_text(str(val1)) if fp and isinstance(val1, str) else str(val1)
+                d_val2 = safe_punjabi_pdf_text(str(val2)) if fp and isinstance(val2, str) else str(val2)
+                
+                elements.append(Paragraph(f"<b>{dlbl}:</b> {n1} ({d_val1}) | {n2} ({d_val2})", b_style))
                 
                 try:
                     clean_v1 = float(val1)
@@ -970,6 +1025,11 @@ def generate_village_pdf(villages_data: list, detected_lang: str, insights: str)
                 if prop: 
                     ax.set_yticks(range(len(m_names)))
                     ax.set_yticklabels(m_names, fontproperties=prop)
+
+                    legend = ax.get_legend()
+                    if legend:
+                        for text in legend.get_texts():
+                            text.set_fontproperties(prop)
                     
                 plt.tight_layout()
                 buf = io.BytesIO()
@@ -980,14 +1040,14 @@ def generate_village_pdf(villages_data: list, detected_lang: str, insights: str)
                 elements.append(RLImage(buf, width=6.5*inch, height=max(2.5, len(m_names)*0.6)*inch))
                 
     elements.append(Spacer(1, 20))
-    elements.append(Paragraph(safe_punjabi_pdf_text("AI Insights"), h2_style))
+    insight_title = reshape_only("AI ਸੂਝ") if fp else "AI Insights"
+    elements.append(Paragraph(insight_title, h2_style))
+    
     for line in (insights or "").split('\n'):
         if line.strip(): 
             clean_line = line.replace('**', '').replace('#', '').strip()
-            # Must reshape the raw Punjabi coming directly from the LLM
             if fp: 
-                import re
-                clean_line = re.sub(r'([\u0A15-\u0A39\u0A59-\u0A5E](?:\u0A4D[\u0A15-\u0A39\u0A59-\u0A5E])?)([\u0A3F])', r'\2\1', clean_line)
+                clean_line = reshape_only(clean_line)
             elements.append(Paragraph(clean_line, b_style))
             
     doc.build(elements)
