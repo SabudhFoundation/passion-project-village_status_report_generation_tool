@@ -61,17 +61,10 @@ def get_translation(text: str, target_lang='pa') -> str:
         return text
     
     if target_lang == 'pa':
-        clean_text = str(text).strip()
-        
-        if hasattr(constants, 'PUNJABI_LABELS'):
-            # Try multiple text cases so it matches no matter how the database formats it
-            variations = [clean_text, clean_text.title(), clean_text.upper(), clean_text.lower()]
-            for var in variations:
-                if var in constants.PUNJABI_LABELS:
-                    return constants.PUNJABI_LABELS[var]
-                    
+        if hasattr(constants, 'PUNJABI_LABELS') and text in constants.PUNJABI_LABELS:
+            return constants.PUNJABI_LABELS[text]
         try:
-            return GoogleTranslator(source='auto', target=target_lang).translate(clean_text)
+            return GoogleTranslator(source='auto', target=target_lang).translate(str(text))
         except Exception:
             return text
             
@@ -952,7 +945,7 @@ def generate_village_pdf(villages_data: list, detected_lang: str, insights: str)
             dom_title = f"{reshape_only('ਡੋਮੇਨ')} {d_idx}: {d_name_trans}" if fp else f"Domain {d_idx}: {d_name_trans}"
             elements.append(Paragraph(dom_title, h2_style))
             
-            m_names, v1_vals = [], []
+            m_names, v1_vals, v2_vals = [], [], []
             for lbl, path in metrics:
                 val = get_nested(v, path)
                 dlbl = safe_punjabi_pdf_text(lbl)

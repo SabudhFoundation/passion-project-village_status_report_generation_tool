@@ -50,18 +50,10 @@ def village_report_app():
             lang = 'pa' if is_punjabi else 'en'
             st.session_state['v_lang'] = lang
             
-            # --- 🚀 UPGRADED FAST-PATH (TEXT NORMALIZATION) ---
-            prompt_clean = chat_prompt.strip()
-            normalized_prompt = re.sub(r'\s+(and|&|ਅਤੇ)\s+', ',', prompt_clean, flags=re.IGNORECASE)
-            word_count = len(normalized_prompt.replace(',', ' ').split())
-            
-            if word_count <= 2 and normalized_prompt.lower() not in ['hi', 'hello', 'help']:
-                intent = "status_report"
-                village_names = [v.strip() for v in normalized_prompt.split(',') if v.strip()]
-            else:
-                classification = llm.classify_village_intent(chat_prompt)
-                intent = classification.get("intent")
-                village_names = classification.get("village_names", [])
+            # --- AI CLASSIFICATION (FAST-PATH REMOVED FOR DATA ACCURACY) ---
+            classification = llm.classify_village_intent(chat_prompt)
+            intent = classification.get("intent")
+            village_names = classification.get("village_names", [])
 
             if intent == "help_request":
                 msg = "I can help you generate status reports for villages or compare them. Type names like 'Baluana'."
