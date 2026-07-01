@@ -45,8 +45,16 @@ def search_villages_for_grid(village_name: str) -> list:
     if not village_name:
         return []
 
-    # Partial match regex
-    query = {"village_name": {"$regex": village_name.strip(), "$options": "i"}}
+    # --- NEW: SMART REGEX MATCHING ---
+    search_term = village_name.strip()
+    if len(search_term) <= 2:
+        # If user types 1 or 2 letters, only match villages STARTING with those letters
+        regex_pattern = f"^{search_term}"
+    else:
+        # For longer inputs, allow matching anywhere in the string
+        regex_pattern = search_term
+        
+    query = {"village_name": {"$regex": regex_pattern, "$options": "i"}}
     
     # Return basic info plus assessment_year to help the user identify records
     projection = {

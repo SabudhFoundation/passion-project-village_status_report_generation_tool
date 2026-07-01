@@ -31,24 +31,27 @@ def village_report_app():
             st.markdown(message["content"])
 
     input_placeholder = "Enter village name(s) or ask a question..." if lang == 'en' else "ਪਿੰਡਾਂ ਦੇ ਨਾਮ ਦਰਜ ਕਰੋ ਜਾਂ ਸਵਾਲ ਪੁੱਛੋ..."
+    chat_prompt = st.chat_input(input_placeholder)
 
-    if prompt := st.chat_input(input_placeholder):
-        # Reset all confirmation states on new search
+    # --- 🤖 THE AI CHATBOX TRIGGER ---
+    if chat_prompt:
+        # Reset all confirmation states on new search (Forces them through the grid checkpoint)
         st.session_state['v_confirmed'] = False
         st.session_state['v_year_confirmed'] = False
         st.session_state['v_selected_names'] = []
         st.session_state['v_selected_year'] = None
         st.session_state['v_candidates'] = []
         
-        st.session_state['v_messages'].append({"role": "user", "content": prompt})
-        with st.chat_message("user"): st.markdown(prompt)
+        st.session_state['v_messages'].append({"role": "user", "content": chat_prompt})
+        with st.chat_message("user"): st.markdown(chat_prompt)
 
         with st.spinner("Analyzing..."):
-            is_punjabi = bool(re.search(r'[\u0A00-\u0A7F]', prompt))
+            is_punjabi = bool(re.search(r'[\u0A00-\u0A7F]', chat_prompt))
             lang = 'pa' if is_punjabi else 'en'
             st.session_state['v_lang'] = lang
             
-            classification = llm.classify_village_intent(prompt)
+            # --- AI CLASSIFICATION (FAST-PATH REMOVED FOR DATA ACCURACY) ---
+            classification = llm.classify_village_intent(chat_prompt)
             intent = classification.get("intent")
             village_names = classification.get("village_names", [])
 
@@ -75,7 +78,7 @@ def village_report_app():
                     if candidates:
                         all_candidates.extend(candidates)
                     else:
-                        closest_lower = difflib.get_close_matches(v_name.lower().strip(), db_names_lower_map.keys(), n=2, cutoff=0.65)
+                        closest_lower = difflib.get_close_matches(v_name.lower().strip(), db_names_lower_map.keys(), n=1, cutoff=0.8)
                         if closest_lower:
                             for match in [db_names_lower_map[m] for m in closest_lower]:
                                 match_cands = database.search_villages_for_grid(match)
@@ -83,29 +86,73 @@ def village_report_app():
                         else:
                             missing_villages.append(v_name)
 
+                # --- 🌐 TAVILY WEB FALLBACK FOR MISSING VILLAGES ---
+                for missing_v in missing_villages:
+                    if len(missing_v) <= 2:
+                        msg = f"⚠️ Please enter a more complete village name than '{missing_v}' to search the live web."
+                        if lang == 'pa': msg = utils.get_translation(msg)
+                        with st.chat_message("assistant"): st.warning(msg)
+                        st.session_state['v_messages'].append({"role": "assistant", "content": msg})
+                        continue
+
+                    with st.spinner(f"🔍 '{missing_v}' not in local database. Searching web records..."):
+                        web_context = llm.get_external_village_data(missing_v)
+                        
+                    if web_context:
+                        with st.spinner(f"🧠 Synthesizing live web insights for '{missing_v}'..."):
+                            web_report = llm.generate_report_from_web(missing_v, web_context, lang)
+                            
+                        msg = f"🌐 Note: '{missing_v}' is missing from our local dataset. Here is a live summary compiled from web sources:"
+                        if lang == 'pa': msg = f"🌐 ਨੋਟ: '{missing_v}' ਸਥਾਨਕ ਡੇਟਾਬੇਸ ਵਿੱਚ ਨਹੀਂ ਹੈ, ਪਰ ਵੈੱਬ ਸਰੋਤਾਂ ਤੋਂ ਲਾਈਵ ਰਿਪੋਰਟ ਤਿਆਰ ਕੀਤੀ ਗਈ ਹੈ:"
+                        
+                        with st.chat_message("assistant"):
+                            st.info(msg)
+                            try:
+                                import json
+                                clean_json = web_report.replace('```json', '').replace('```', '').strip()
+                                data = json.loads(clean_json)
+                                
+                                st.markdown(f"### 🏡 {missing_v.title()} - Web Intelligence Report")
+                                st.write(data.get("summary", ""))
+                                
+                                col1, col2 = st.columns(2)
+                                col1.metric("👥 Estimated Population", data.get("population", "Data Unavailable"))
+                                col2.metric("📚 Literacy Rate", data.get("literacy_rate", "Data Unavailable"))
+                                
+                                st.divider()
+                                for domain, points in data.get("domains", {}).items():
+                                    with st.expander(f"📌 {domain}", expanded=False):
+                                        for point in points:
+                                            st.markdown(f"- {point}")
+                            except Exception as e:
+                                st.markdown(web_report)
+                                print(f"JSON Parsing Error: {e}")
+                                
+                        st.session_state['v_messages'].append({"role": "assistant", "content": f"{msg}\n\n[Structured Web Dashboard Displayed for {missing_v}]"})
+                    else:
+                        msg = f"Sorry, I couldn't find any local records or web data for '{missing_v}'."
+                        if lang == 'pa': msg = utils.get_translation(msg)
+                        with st.chat_message("assistant"): st.error(msg)
+                        st.session_state['v_messages'].append({"role": "assistant", "content": msg})
+
+                # --- 🗄️ LOCAL DATABASE RESULTS UI ---
                 if all_candidates:
-                    # FIX: Deduplicate strictly by village_name so it only shows ONCE in the grid
                     unique_candidates = {c['village_name']: c for c in all_candidates}
                     st.session_state['v_candidates'] = list(unique_candidates.values())
                     
-                    msg = "Found matches. Please select 1 or 2 villages from the table below."
+                    msg = "Found local matches. Please select your village(s) from the table below to generate the official report."
                     if lang == 'pa': msg = utils.get_translation(msg)
-                    with st.chat_message("assistant"): st.success(msg)
+                    with st.chat_message("assistant"): 
+                        st.success(msg)
+                        if missing_villages:
+                            warn_msg = "Note: Because some requested villages were fetched from live web records, they cannot be compared side-by-side with official database records."
+                            if lang == 'pa': warn_msg = utils.get_translation(warn_msg)
+                            st.warning(warn_msg)
+                            
                     st.session_state['v_messages'].append({"role": "assistant", "content": msg})
-                else:
-                    msg = "Sorry, I couldn't find matches for the requested villages. Please check spelling."
-                    if lang == 'pa': msg = utils.get_translation(msg)
-                    with st.chat_message("assistant"): st.error(msg)
-                    st.session_state['v_messages'].append({"role": "assistant", "content": msg})
-            else:
-                msg = "I'm not sure I understood. Could you provide the village name?"
-                if lang == 'pa': msg = utils.get_translation(msg)
-                with st.chat_message("assistant"): st.warning(msg)
-                st.session_state['v_messages'].append({"role": "assistant", "content": msg})
 
     # --- STEP 1: UI Grid Selection (Village Names) ---
     if st.session_state.get('v_candidates') and not st.session_state['v_confirmed']:
-        # Ensure 'assessment_year' is completely dropped from the dataframe before passing to AgGrid
         raw_df = pd.DataFrame(st.session_state['v_candidates'])
         display_df = raw_df[["village_name", "gp_name", "block_name"]].rename(
             columns={"village_name": "Village Name", "gp_name": "Gram Panchayat", "block_name": "Block"}
@@ -141,14 +188,12 @@ def village_report_app():
         with st.spinner("Loading available assessment years..."):
             for v_name in st.session_state['v_selected_names']:
                 records = database.get_village_records(v_name)
-                # Safely pull the year handling both possible casing styles in DB
                 v_years = set()
                 for r in records:
                     yr = r.get('Assessment_Year') or r.get('assessment_year')
                     if yr: v_years.add(str(yr).strip())
                 years_sets.append(v_years)
         
-        # Intersect years if comparing 2 villages, so we only show years where BOTH have data
         common_years = set.intersection(*years_sets) if years_sets else set()
         
         if not common_years:
@@ -159,14 +204,11 @@ def village_report_app():
         else:
             sorted_years = sorted(list(common_years), reverse=True)
             
-            # --- NEW FEATURE: Auto-select latest year if 2 villages are chosen ---
             if len(st.session_state['v_selected_names']) == 2:
-                # Bypass the radio button UI and automatically select the latest year
                 st.session_state['v_selected_year'] = sorted_years[0]
                 st.session_state['v_year_confirmed'] = True
                 st.rerun()
             else:
-                # If only 1 village is selected, show the radio button options
                 st.markdown("### 📅 Select Assessment Year" if st.session_state['v_lang'] == 'en' else "### 📅 ਮੁਲਾਂਕਣ ਸਾਲ ਚੁਣੋ")
                 
                 selected_year = st.radio(

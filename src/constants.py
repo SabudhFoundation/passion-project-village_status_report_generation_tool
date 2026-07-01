@@ -2,11 +2,13 @@
 PUNJABI_LABELS = {
     # Proper Nouns & UI Labels (Add any other districts here)
     "Ropar": "ਰੋਪੜ",
+    "Sandoha": "ਸੰਦੋਹਾ",
+    "Bhaini": "ਭੈਣੀ",
     "District": "ਜ਼ਿਲ੍ਹਾ", # Change to "ਜਿਲ੍ਹਾ" or "ਜ਼ਿਲਾ" if you prefer
     "Block": "ਬਲਾਕ",
     "Assessment Date": "ਮੁਲਾਂਕਣ ਤਾਰੀਖ",
     "UDISE Code": "ਯੂ-ਡਾਈਸ ਕੋਡ",
-    
+   
     # Sanitation & Waste Management
     "ODF Status": "ਓਡੀਐਫ ਸਥਿਤੀ",
     "Waste Segregation Sheds": "ਕੂੜਾ ਵੱਖ ਕਰਨ ਵਾਲੇ ਸ਼ੈੱਡ",
