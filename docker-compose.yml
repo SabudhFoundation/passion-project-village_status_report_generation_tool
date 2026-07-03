@@ -1,0 +1,18 @@
+version: "3.9"
+
+services:
+  rural-status-intelligence:
+    build:
+      context: .
+      dockerfile: Dockerfile
+
+    image: rural-status-intelligence
+    container_name: rural-intell-app
+
+    ports:
+      - "8501:8501"
+
+    env_file:
+      - .env
+    
+    restart: unless-stopped
